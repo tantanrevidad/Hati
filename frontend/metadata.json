@@ -1,0 +1,8 @@
+{
+  "name": "lista",
+  "description": "A shared e-wallet and expense tracker for roommates, featuring smart settlements and offline support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
