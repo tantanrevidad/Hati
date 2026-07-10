@@ -1,15 +1,14 @@
 # Contract Alignment — Lista (v2, post-Checkpoint Revision)
 
 > Supersedes the original Hati contract doc. Changes below came out of the market-research checkpoint meeting and the Main Features doc. Where a new decision **reverses** a prior Day 1 decision, it's flagged explicitly — confirm these with the team before merging, since they affect work already in progress on some tracks.
->
-> ⚠️ **Team discussion needed before locking this**: the auth model change (Section 1) is a real reversal of your original "frictionless guest join" principle. Everything else here is safe to merge directly.
+> 
 
 ---
 
 ## 0. Summary of What Changed
 
 | Area | v1 (Hati) | v2 (Lista) | Reversal? |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Auth | Guest join, account created lazily at first settlement | Login required on landing, before any group access | ⚠️ Yes — flag to team |
 | Cash confirmation | Single payee confirms | ALL owed users must confirm | Extension, not reversal |
 | Payment methods | gcash / maya / bank / cash / stellar (4 stubs) | QRPH / cash (2 methods) | Simplification |
@@ -43,6 +42,7 @@
 ```
 
 **Changes from v1:**
+
 - **`isGuest` and `authMethod: guest` removed.** Per the new landing-page flow, every user authenticates (phone/email/Google) before reaching the main menu — there is no guest state anymore. **This is the flagged reversal — confirm with team.**
 - `linkedPaymentMethods` added — populated during onboarding ("prompted to link GCash, Maya, or Bank"). Stores a reference token, never raw account credentials.
 - `walletAddress` (Stellar custodial) is still created lazily at first Settle tap — that part of the original decision still holds, since linking a GCash/Maya reference is a different action from custodial Stellar account creation.
@@ -66,6 +66,7 @@
 ```
 
 **Changes from v1:**
+
 - `zeroBalanceSince` added — set whenever `Ledger.balances` for this group all hit zero; cleared if a new expense breaks that. A scheduled job checks this field and flips `status` to `archived` once it's been non-null for 7 days. (Backend: this needs an actual cron/scheduled task, not just a field — flag for whoever owns backend infra.)
 - Naming: keep `Group` as the internal/DB/API name. Only the UI copy says "Listahan." Renaming the entity itself across the whole codebase is unnecessary churn for a cosmetic distinction — don't do it.
 
@@ -92,6 +93,7 @@
 ```
 
 **Changes from v1:**
+
 - `mentions` array added — extracted `@{user}` tags from the free-text `description` field. Frontend parses `@mentions` client-side as the user types (for the tag-autocomplete UX), sends the resolved `User.id` list alongside the raw text.
 - **Decision on @mention → split logic**: mentioned users are added to `splitDetails.participantIds` (for `equal` split) automatically, in addition to whoever `paidBy` is. Example: "@Mark ordered extra rice" — for MVP, this does **not** attempt to parse "extra rice" as a separate itemized amount; it's a stretch goal. MVP just uses mentions to determine *who's included* in an equal split, not fine-grained itemization from prose. Don't over-scope this for Phase 1 — true NLP-based itemized parsing from a sentence is a real research problem, not a hackathon-week feature.
 - `source` renamed from `manual` to `manual_description` to reflect that manual entry is now the free-text description flow, not a structured form.
@@ -123,6 +125,7 @@ Unchanged from v1 — `balances` array already supports the pie-chart breakdown 
 ```
 
 **Changes from v1 — this is the biggest structural change:**
+
 - `toUserId` (singular) replaced with `confirmations` array — one entry per creditor the `fromUserId` owes money to within this settlement action. This is required because the new spec has settlements resolve against **multiple** owed users at once, not one pairwise debt.
 - Status only flips to `confirmed` once **every** entry in `confirmations` has a non-null `confirmedAt`. Backend logic: on each confirm action, check if all entries are filled; if yes, cascade-update `status`.
 - `method` collapsed to `qrph | cash | stellar` — `gcash`/`maya`/`bank` are no longer separate stub methods, since QRPH is a unified standard covering that whole payment-rail category. This actually **reduces** your stub-endpoint burden versus the original 4-method design.
@@ -144,6 +147,7 @@ Unchanged from v1 — `balances` array already supports the pie-chart breakdown 
 ```
 
 **Decisions:**
+
 - A nudge is a lightweight notification, not a payment action — it doesn't touch `Settlement` at all, just triggers a push/in-app notification to the target user.
 - Rate limiting: **max 1 nudge per user pair per 24 hours**, to avoid it becoming a harassment vector. Enforce this server-side, not just in UI, since UI-only limits are trivial to bypass.
 
@@ -158,9 +162,9 @@ Unchanged from v1 — one link per `Group`, encodes full URL only, host-generate
 ## 2. API Endpoint Contracts (Updated)
 
 | Endpoint | Method | Request | Response | Notes |
-|---|---|---|---|---|
-| `/auth/login` | POST | `{ method: phone\|email\|google, credential }` | `{ user: User, token }` | **New** — replaces the old guest-join path entirely |
-| `/users/me/payment-methods` | POST | `{ type: gcash\|maya\|bank, referenceToken }` | `User` (updated) | **New** — onboarding wallet-linking step |
+| --- | --- | --- | --- | --- |
+| `/auth/login` | POST | `{ method: phone|email|google, credential }` | `{ user: User, token }` | **New** — replaces the old guest-join path entirely |
+| `/users/me/payment-methods` | POST | `{ type: gcash|maya|bank, referenceToken }` | `User` (updated) | **New** — onboarding wallet-linking step |
 | `/groups` | POST | `{ name, hostId }` | `Group` | unchanged |
 | `/groups/:id/join-link` | POST | `{ createdBy }` | `JoinLink` | unchanged |
 | `/join/:slug` | GET | — (now requires auth token, not anonymous) | `{ group: Group, ledger: Ledger }` | ⚠️ auth now required here — was anonymous in v1 |
@@ -172,6 +176,7 @@ Unchanged from v1 — one link per `Group`, encodes full URL only, host-generate
 | `/groups/:id/nudge` | POST | `{ fromUserId, toUserId }` | `Nudge` | **New**, server-side rate-limited |
 
 **Decisions:**
+
 - Auth is now real (token-based), not the "skip real auth, pass userId in body" approach from v1 — this follows directly from the login-first requirement. Use a standard JWT issued at `/auth/login`, attached as a bearer token on every subsequent request. This is more work than v1's shortcut, but it's no longer optional once login gates the whole app.
 - Gemini API calls happen server-side (never expose the Gemini API key to the client) — `/groups/:id/expenses/scan` is the only place that touches it.
 
@@ -180,6 +185,7 @@ Unchanged from v1 — one link per `Group`, encodes full URL only, host-generate
 ## 3. Naming Conventions
 
 Unchanged from v1 — still applies:
+
 - PascalCase types, camelCase JSON
 - `id` for primary key, `xId` for foreign keys
 - ISO8601 timestamps suffixed `At`
