@@ -1,2 +1,2 @@
-# Hati
-splitting bills made easy
+# Lista
+Your tab. Settled
