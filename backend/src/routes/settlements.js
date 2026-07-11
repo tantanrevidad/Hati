@@ -216,4 +216,87 @@ router.post('/settlements/:id/confirm', authMiddleware, (req, res) => {
   }
 });
 
+const { generateQrPhImage } = require('../services/qrph');
+
+// 3. Generate QR PH Payment Code for a Settlement
+//    POST /settlements/qrph/generate
+//    Body: { groupId, fromUserId, toUserId, amountCentavos }
+//    Returns: { payload, qrDataUrl, recipientName, amountPhp }
+router.post('/settlements/qrph/generate', authMiddleware, async (req, res) => {
+  const { groupId, fromUserId, toUserId, amountCentavos } = req.body;
+  const callerId = req.user.id;
+
+  if (!groupId || !fromUserId || !toUserId || !amountCentavos) {
+    return res.status(400).json({ error: 'Missing required fields: groupId, fromUserId, toUserId, amountCentavos' });
+  }
+
+  if (callerId !== fromUserId) {
+    return res.status(403).json({ error: 'You can only generate QR codes for your own settlements' });
+  }
+
+  try {
+    // Verify both users are members of the group
+    const members = db.prepare('SELECT userId FROM group_members WHERE groupId = ?').all(groupId);
+    const memberIds = members.map(m => m.userId);
+
+    if (!memberIds.includes(fromUserId) || !memberIds.includes(toUserId)) {
+      return res.status(400).json({ error: 'Both users must be members of the group' });
+    }
+
+    // Fetch recipient details (need their linked GCash/Maya number)
+    const recipient = db.prepare('SELECT displayName, linkedPaymentMethods, authMethod, phone FROM users WHERE id = ?').get(toUserId);
+    if (!recipient) {
+      return res.status(404).json({ error: 'Recipient user not found' });
+    }
+
+    // Determine the recipient's mobile number for QR PH
+    // Priority: 1) Linked GCash number, 2) Linked Maya number, 3) Phone auth credential
+    let recipientMobile = null;
+    const paymentMethods = recipient.linkedPaymentMethods 
+      ? JSON.parse(recipient.linkedPaymentMethods) 
+      : [];
+    
+    const gcash = paymentMethods.find(p => p.type === 'gcash');
+    const maya = paymentMethods.find(p => p.type === 'maya');
+
+    if (gcash && gcash.referenceToken) {
+      recipientMobile = gcash.referenceToken;
+    } else if (maya && maya.referenceToken) {
+      recipientMobile = maya.referenceToken;
+    } else if (recipient.authMethod === 'phone' && recipient.phone) {
+      recipientMobile = recipient.phone;
+    }
+
+    if (!recipientMobile) {
+      return res.status(400).json({ 
+        error: 'Recipient has no linked GCash/Maya number or phone credential. They need to link a payment method first.',
+        hint: 'POST /users/me/payment-methods with type=gcash and referenceToken=09XXXXXXXXX'
+      });
+    }
+
+    // Generate the QR PH code
+    const referenceId = `LISTA-${groupId.substring(0, 8).toUpperCase()}`;
+    const { payload, qrDataUrl } = await generateQrPhImage({
+      recipientName: recipient.displayName || 'Lista User',
+      recipientMobile: recipientMobile,
+      amountCentavos: amountCentavos,
+      referenceId: referenceId
+    });
+
+    return res.json({
+      payload,
+      qrDataUrl,
+      recipientName: recipient.displayName,
+      recipientMobile: recipientMobile.replace(/(\d{4})(\d{3})(\d{4})/, '$1-$2-$3'),
+      amountPhp: (amountCentavos / 100).toFixed(2),
+      referenceId,
+      instructions: 'Open GCash, Maya, or any QR PH-compatible banking app → Scan this QR code → Confirm payment'
+    });
+  } catch (err) {
+    console.error('Error generating QR PH code:', err);
+    return res.status(500).json({ error: 'Failed to generate QR PH payment code' });
+  }
+});
+
 module.exports = router;
+

@@ -46,4 +46,20 @@ router.post('/me/payment-methods', authMiddleware, (req, res) => {
   }
 });
 
+const { getInteractiveDepositUrl } = require('../services/stellar');
+
+/**
+ * Initiates an SEP-24 Interactive Deposit transaction with the testnet anchor.
+ * Returns the interactive webview URL.
+ */
+router.post('/me/deposit', authMiddleware, async (req, res) => {
+  try {
+    const url = await getInteractiveDepositUrl(req.user.id);
+    return res.json({ url });
+  } catch (err) {
+    console.error('Error initiating interactive deposit:', err);
+    return res.status(500).json({ error: err.message || 'Failed to initiate interactive deposit' });
+  }
+});
+
 module.exports = router;

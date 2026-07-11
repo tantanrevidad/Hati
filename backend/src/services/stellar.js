@@ -231,7 +231,68 @@ async function submitStellarPayment(fromSecret, toPublicKey, amountCentavos) {
   return result.hash;
 }
 
+/**
+ * Resolves SEP-10 authentication and initiates a real SEP-24 interactive deposit transaction 
+ * with the official SDF Test Anchor, returning the interactive portal URL.
+ */
+async function getInteractiveDepositUrl(userId) {
+  let user = db.prepare('SELECT walletAddress, walletSecret FROM users WHERE id = ?').get(userId);
+  if (!user || !user.walletAddress || !user.walletSecret) {
+    console.log(`Generating custodial wallet for user ${userId} on-the-fly for SEP-24 deposit...`);
+    await createCustodialWallet(userId);
+    user = db.prepare('SELECT walletAddress, walletSecret FROM users WHERE id = ?').get(userId);
+  }
+
+  const publicKey = user.walletAddress;
+  const secretKey = user.walletSecret;
+  const anchorUrl = 'https://testanchor.stellar.org';
+
+  // 1. Fetch SEP-10 Challenge Transaction
+  const chalRes = await fetch(`${anchorUrl}/auth?account=${publicKey}`);
+  if (!chalRes.ok) {
+    throw new Error(`Failed to fetch SEP-10 challenge: ${await chalRes.text()}`);
+  }
+  const chalData = await chalRes.json();
+
+  // 2. Decode and sign challenge
+  const tx = new StellarSdk.Transaction(chalData.transaction, chalData.network_passphrase);
+  const userPair = StellarSdk.Keypair.fromSecret(secretKey);
+  tx.sign(userPair);
+  const signedXdr = tx.toXDR();
+
+  // 3. Authenticate challenge to get JWT Token
+  const tokenRes = await fetch(`${anchorUrl}/auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transaction: signedXdr })
+  });
+  if (!tokenRes.ok) {
+    throw new Error(`Failed to authenticate challenge: ${await tokenRes.text()}`);
+  }
+  const tokenData = await tokenRes.json();
+  const jwtToken = tokenData.token;
+
+  // 4. Initiate SEP-24 Interactive Deposit
+  const depRes = await fetch(`${anchorUrl}/sep24/transactions/deposit/interactive`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${jwtToken}`
+    },
+    body: JSON.stringify({
+      asset_code: 'USDC',
+      account: publicKey
+    })
+  });
+  if (!depRes.ok) {
+    throw new Error(`Failed to initiate SEP-24 interactive deposit: ${await depRes.text()}`);
+  }
+  const depData = await depRes.json();
+  return depData.url;
+}
+
 module.exports = {
   createCustodialWallet,
-  submitStellarPayment
+  submitStellarPayment,
+  getInteractiveDepositUrl
 };
