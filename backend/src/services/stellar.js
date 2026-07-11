@@ -6,6 +6,11 @@ const server = new StellarSdk.Horizon.Server(
 );
 const networkPassphrase = StellarSdk.Networks.TESTNET;
 
+const USDC_ASSET = new StellarSdk.Asset(
+  'USDC',
+  'GBK52AWQPRBTEDOYROFVBGVI53KQKNT3HRIZYATUQJT6FNIXR4YTK6LO'
+);
+
 let feeBumperKeypair = null;
 
 // Helper to fund accounts via Friendbot
@@ -22,29 +27,118 @@ async function fundAccount(publicKey) {
   }
 }
 
-// Lazy load or generate the fee-bumper account
-async function getFeeBumper() {
-  if (feeBumperKeypair) return feeBumperKeypair;
+let feeBumperPromise = null;
 
-  const secret = process.env.FEE_BUMPER_SECRET;
-  if (secret) {
-    feeBumperKeypair = StellarSdk.Keypair.fromSecret(secret);
-    console.log('Loaded Fee Bumper Public Key:', feeBumperKeypair.publicKey());
-  } else {
-    console.log('FEE_BUMPER_SECRET not set in .env. Generating a temporary testnet fee bumper...');
-    feeBumperKeypair = StellarSdk.Keypair.random();
-    console.log('Generated Temporary Fee Bumper Public Key:', feeBumperKeypair.publicKey());
-    await fundAccount(feeBumperKeypair.publicKey());
-    console.log('Temporary Fee Bumper funded successfully.');
-  }
-  return feeBumperKeypair;
+// Lazy load or generate the fee-bumper account (concurrent-safe promise cache)
+async function getFeeBumper() {
+  if (feeBumperPromise) return feeBumperPromise;
+
+  feeBumperPromise = (async () => {
+    const secret = process.env.FEE_BUMPER_SECRET;
+    if (secret) {
+      const keypair = StellarSdk.Keypair.fromSecret(secret);
+      console.log('Loaded Fee Bumper Public Key:', keypair.publicKey());
+      return keypair;
+    } else {
+      console.log('FEE_BUMPER_SECRET not set in .env. Generating a temporary testnet fee bumper...');
+      const keypair = StellarSdk.Keypair.random();
+      console.log('Generated Temporary Fee Bumper Public Key:', keypair.publicKey());
+      await fundAccount(keypair.publicKey());
+      console.log('Temporary Fee Bumper funded successfully.');
+      return keypair;
+    }
+  })();
+
+  return feeBumperPromise;
+}
+
+/**
+ * Submits a fee-bumped changeTrust transaction to establish a USDC trustline for a custodial account.
+ */
+async function establishUsdcTrustline(publicKey, secretKey) {
+  const account = await server.loadAccount(publicKey);
+
+  const innerTx = new StellarSdk.TransactionBuilder(account, {
+    fee: '0',
+    networkPassphrase: networkPassphrase
+  })
+    .addOperation(
+      StellarSdk.Operation.changeTrust({
+        asset: USDC_ASSET
+      })
+    )
+    .setTimeout(180)
+    .build();
+
+  const userPair = StellarSdk.Keypair.fromSecret(secretKey);
+  innerTx.sign(userPair);
+
+  const feeBumper = await getFeeBumper();
+
+  const feeBumpTx = StellarSdk.TransactionBuilder.buildFeeBumpTransaction(
+    feeBumper.publicKey(),
+    (StellarSdk.BASE_FEE * 2).toString(),
+    innerTx,
+    networkPassphrase
+  );
+
+  feeBumpTx.sign(feeBumper);
+
+  await server.submitTransaction(feeBumpTx);
+}
+
+let issuerQueuePromise = Promise.resolve();
+
+/**
+ * Mints custom USDC stablecoin to the target account from the issuer.
+ * Uses a promise queue to serialize transaction submission and prevent sequence conflicts.
+ */
+async function mintUsdc(toPublicKey, amountCentavos) {
+  return new Promise((resolve, reject) => {
+    issuerQueuePromise = issuerQueuePromise.then(async () => {
+      try {
+        const hash = await executeMintUsdc(toPublicKey, amountCentavos);
+        resolve(hash);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+}
+
+/**
+ * Raw execution of the issuer payment on Stellar.
+ */
+async function executeMintUsdc(toPublicKey, amountCentavos) {
+  const issuerPair = StellarSdk.Keypair.fromSecret('SCWYHTBBU4QBWYGW2WKCOOJAQYMWFLOKRTFOPKPCS4DAKE7HIKOSYDXO');
+  const issuerPublicKey = issuerPair.publicKey();
+  const amountDecimal = (amountCentavos / 100).toFixed(7);
+
+  const issuerAccount = await server.loadAccount(issuerPublicKey);
+  const tx = new StellarSdk.TransactionBuilder(issuerAccount, {
+    fee: StellarSdk.BASE_FEE,
+    networkPassphrase: networkPassphrase
+  })
+    .addOperation(
+      StellarSdk.Operation.payment({
+        destination: toPublicKey,
+        asset: USDC_ASSET,
+        amount: amountDecimal
+      })
+    )
+    .setTimeout(180)
+    .build();
+
+  tx.sign(issuerPair);
+  const result = await server.submitTransaction(tx);
+  return result.hash;
 }
 
 /**
  * Generates custodial Stellar keys for a user, registers them, and funds the account.
  */
 async function createCustodialWallet(userId) {
-  const user = db.prepare('SELECT walletAddress FROM users WHERE id = ?').get(userId);
+  const user = db.prepare('SELECT walletAddress, walletSecret FROM users WHERE id = ?').get(userId);
   if (user && user.walletAddress) {
     return user.walletAddress; // Already exists
   }
@@ -65,6 +159,21 @@ async function createCustodialWallet(userId) {
   console.log(`Funding custodial wallet for user ${userId} (${publicKey}) via Friendbot...`);
   await fundAccount(publicKey);
   console.log(`Custodial wallet for user ${userId} (${publicKey}) funded successfully.`);
+
+  // Synchronously establish the USDC trustline so the account can receive USDC immediately
+  try {
+    console.log(`Establishing USDC trustline for user ${userId} (${publicKey})...`);
+    await establishUsdcTrustline(publicKey, secretKey);
+    console.log(`USDC trustline established successfully for user ${userId}.`);
+
+    // Fund the user with 1000 USDC test balance so they have enough balance to settle debts
+    console.log(`Minting 1000 USDC test balance for user ${userId} (${publicKey})...`);
+    await mintUsdc(publicKey, 100000); // 100,000 centavos = 1,000.00 USDC
+    console.log(`Successfully minted 1000 USDC test balance for user ${userId}.`);
+  } catch (err) {
+    console.error(`Failed to initialize USDC for user ${userId}:`, err);
+    throw err;
+  }
 
   return publicKey;
 }
@@ -93,7 +202,7 @@ async function submitStellarPayment(fromSecret, toPublicKey, amountCentavos) {
     .addOperation(
       StellarSdk.Operation.payment({
         destination: toPublicKey,
-        asset: StellarSdk.Asset.native(), // XLM
+        asset: USDC_ASSET, // USDC stablecoin
         amount: amountDecimal
       })
     )

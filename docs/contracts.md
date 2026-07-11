@@ -165,15 +165,19 @@ Unchanged from v1 — one link per `Group`, encodes full URL only, host-generate
 | --- | --- | --- | --- | --- |
 | `/auth/login` | POST | `{ method: phone|email|google, credential }` | `{ user: User, token }` | **New** — replaces the old guest-join path entirely |
 | `/users/me/payment-methods` | POST | `{ type: gcash|maya|bank, referenceToken }` | `User` (updated) | **New** — onboarding wallet-linking step |
-| `/groups` | POST | `{ name, hostId }` | `Group` | unchanged |
-| `/groups/:id/join-link` | POST | `{ createdBy }` | `JoinLink` | unchanged |
-| `/join/:slug` | GET | — (now requires auth token, not anonymous) | `{ group: Group, ledger: Ledger }` | ⚠️ auth now required here — was anonymous in v1 |
-| `/groups/:id/expenses` | POST | `Expense` (minus id/createdAt), raw `description` text | `Expense` (incl. parsed `mentions`) | description parsing happens server-side or client-side — **decide**: client-side parsing of `@mentions` is faster to build and avoids a server NLP dependency; do it client-side for Phase 1 |
+| `/groups` | GET | — | `Group[]` | **New** — Lists all groups the authenticated user belongs to |
+| `/groups` | POST | `{ name }` | `Group` | Host automatically assigned from bearer token |
+| `/groups/:id/join-link` | POST | — | `JoinLink` | Host/member checks verified via auth token |
+| `/join/:slug` | GET | — | `{ group: Group, ledger: Ledger }` | ⚠️ auth required — joins user to group and returns ledger |
+| `/groups/:id/members` | GET | — | `User[]` | **New** — Returns profiles of all members in the group |
+| `/groups/:id/expenses` | GET | — | `Expense[]` | **New** — Lists all bills/expenses logged in the group |
+| `/groups/:id/expenses` | POST | `{ description, amount, category, paidBy, splitType, splitDetails }` | `Expense` | Logs expense and parses `@mentions` |
 | `/groups/:id/expenses/scan` | POST | multipart image | `Expense` (AI-parsed via Gemini) | **New** — separate endpoint from manual entry, since it hits Gemini API |
-| `/groups/:id/ledger` | GET | — | `Ledger` | unchanged |
-| `/settlements` | POST | `{ groupId, fromUserId, amount, method, toUserIds: string[] }` | `Settlement` (with `confirmations` array populated per `toUserIds`) | request shape changed — `toUserIds` (plural) replaces `toUserId` |
-| `/settlements/:id/confirm` | POST | `{ confirmedBy }` | `Settlement` (that entry's `confirmedAt` set; status cascade-checked) | logic updated per multi-party confirm |
-| `/groups/:id/nudge` | POST | `{ fromUserId, toUserId }` | `Nudge` | **New**, server-side rate-limited |
+| `/groups/:id/ledger` | GET | — | `Ledger` | Calculates simplified debt balances |
+| `/groups/:id/settlements` | GET | — | `Settlement[]` | **New** — Lists all cash and Stellar payment transactions |
+| `/settlements` | POST | `{ groupId, fromUserId, amount, method, toUserIds: string[] }` | `Settlement` (with `confirmations` array populated per `toUserIds`) | Creates pending cash or live Stellar transaction |
+| `/settlements/:id/confirm` | POST | `{ confirmedBy }` | `Settlement` | Approves cash receipt; cascades status update |
+| `/groups/:id/nudge` | POST | `{ toUserId }` | `Nudge` | **New**, rate-limited to 1 per user pair per 24 hours |
 
 **Decisions:**
 

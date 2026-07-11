@@ -4,6 +4,31 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 const { calculateLedger, simplifyDebts } = require('../services/debt');
+const { parseReceipt } = require('../services/gemini');
+
+// 0. Get all Groups for User
+router.get('/groups', authMiddleware, (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const groups = db.prepare(`
+      SELECT g.* FROM groups g
+      JOIN group_members gm ON g.id = gm.groupId
+      WHERE gm.userId = ?
+    `).all(userId);
+
+    // Add memberIds to each group object
+    groups.forEach(g => {
+      const members = db.prepare('SELECT userId FROM group_members WHERE groupId = ?').all(g.id);
+      g.memberIds = members.map(m => m.userId);
+    });
+
+    return res.json(groups);
+  } catch (err) {
+    console.error('Error fetching groups:', err);
+    return res.status(500).json({ error: 'Failed to fetch groups' });
+  }
+});
 
 // 1. Create a Listahan (Group)
 router.post('/groups', authMiddleware, (req, res) => {
@@ -237,6 +262,31 @@ router.post('/groups/:id/expenses', authMiddleware, (req, res) => {
   }
 });
 
+// 4.1. Scan Receipt/Invoice via Gemini AI
+router.post('/groups/:id/expenses/scan', authMiddleware, async (req, res) => {
+  const groupId = req.params.id;
+  const userId = req.user.id;
+  const { imageBase64, mimeType } = req.body;
+
+  if (!imageBase64) {
+    return res.status(400).json({ error: 'Missing imageBase64 payload' });
+  }
+
+  try {
+    // Verify membership
+    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    if (!member) {
+      return res.status(403).json({ error: 'Access denied: Not a group member' });
+    }
+
+    const parsedData = await parseReceipt(imageBase64, mimeType);
+    return res.json(parsedData);
+  } catch (err) {
+    console.error('Error in receipt scan endpoint:', err.message);
+    return res.status(500).json({ error: err.message || 'Failed to scan receipt' });
+  }
+});
+
 // 5. Get Group Ledger
 router.get('/groups/:id/ledger', authMiddleware, (req, res) => {
   const groupId = req.params.id;
@@ -320,6 +370,78 @@ router.post('/groups/:id/nudge', authMiddleware, (req, res) => {
   } catch (err) {
     console.error('Error executing nudge:', err);
     return res.status(500).json({ error: 'Failed to send nudge' });
+  }
+});
+
+// 7. Get members of a Group
+router.get('/groups/:id/members', authMiddleware, (req, res) => {
+  const groupId = req.params.id;
+  const userId = req.user.id;
+
+  try {
+    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    if (!member) {
+      return res.status(403).json({ error: 'Access denied: Not a group member' });
+    }
+
+    const members = db.prepare(`
+      SELECT u.id, u.displayName, u.photoUrl, u.phone, u.email, u.walletAddress FROM users u
+      JOIN group_members gm ON u.id = gm.userId
+      WHERE gm.groupId = ?
+    `).all(groupId);
+
+    return res.json(members);
+  } catch (err) {
+    console.error('Error fetching group members:', err);
+    return res.status(500).json({ error: 'Failed to fetch group members' });
+  }
+});
+
+// 8. Get expenses for a Group
+router.get('/groups/:id/expenses', authMiddleware, (req, res) => {
+  const groupId = req.params.id;
+  const userId = req.user.id;
+
+  try {
+    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    if (!member) {
+      return res.status(403).json({ error: 'Access denied: Not a group member' });
+    }
+
+    const expenses = db.prepare('SELECT * FROM expenses WHERE groupId = ?').all(groupId);
+    expenses.forEach(e => {
+      e.mentions = JSON.parse(e.mentions || '[]');
+      e.splitDetails = JSON.parse(e.splitDetails || '{}');
+    });
+
+    return res.json(expenses);
+  } catch (err) {
+    console.error('Error fetching group expenses:', err);
+    return res.status(500).json({ error: 'Failed to fetch group expenses' });
+  }
+});
+
+// 9. Get settlements for a Group
+router.get('/groups/:id/settlements', authMiddleware, (req, res) => {
+  const groupId = req.params.id;
+  const userId = req.user.id;
+
+  try {
+    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    if (!member) {
+      return res.status(403).json({ error: 'Access denied: Not a group member' });
+    }
+
+    const settlements = db.prepare('SELECT * FROM settlements WHERE groupId = ?').all(groupId);
+    settlements.forEach(s => {
+      const confirmations = db.prepare('SELECT toUserId, confirmedAt FROM confirmations WHERE settlementId = ?').all(s.id);
+      s.confirmations = confirmations;
+    });
+
+    return res.json(settlements);
+  } catch (err) {
+    console.error('Error fetching group settlements:', err);
+    return res.status(500).json({ error: 'Failed to fetch group settlements' });
   }
 });
 
