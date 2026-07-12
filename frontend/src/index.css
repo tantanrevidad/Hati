@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
+
+@import 'tailwindcss';
+
+:root {
+  --color-bg: #1A312C;
+  --color-accent: #428475;
+  --color-primary: #89D7B7;
+  --color-text: #FFF4E1;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-family: "DM Sans", ui-rounded, "Nunito Sans", system-ui, sans-serif;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+html {
+  background: var(--color-bg);
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+::selection {
+  background: #89D7B7;
+  color: #1A312C;
+}
+html[data-theme='light'] {
+  --color-bg: #f5f0e6;
+  --color-accent: #d4e4dc;
+  --color-primary: #236b58;
+  --color-text: #193b32;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+html[data-theme='light'],
+html[data-theme='light'] body {
+  background: var(--color-bg);
+}
+/* Warm-paper light mode: clear surface hierarchy without recoloring financial balances. */
+html[data-theme='light'] .bg-\[\#1A312C\] {
+  background-color: #f5f0e6 !important;
+}
+html[data-theme='light'] .bg-\[\#24453d\] {
+  background-color: #fffdfa !important;
+  box-shadow: 0 1px 2px rgba(25, 59, 50, 0.05);
+}
+html[data-theme='light'] .bg-\[\#1A312C\]\/95 {
+  background-color: rgba(245, 240, 230, 0.95) !important;
+}
+html[data-theme='light'] .bg-\[\#10201c\]\/75 {
+  background-color: rgba(25, 59, 50, 0.36) !important;
+}
+html[data-theme='light'] .text-\[\#FFF4E1\] {
+  color: #193b32 !important;
+}
+html[data-theme='light'] .text-\[\#FFF4E1\]\/40 {
+  color: rgba(25, 59, 50, 0.42) !important;
+}
+html[data-theme='light'] .text-\[\#FFF4E1\]\/55 {
+  color: rgba(25, 59, 50, 0.56) !important;
+}
+html[data-theme='light'] .text-\[\#FFF4E1\]\/60,
+html[data-theme='light'] .text-\[\#FFF4E1\]\/65,
+html[data-theme='light'] .text-\[\#FFF4E1\]\/70 {
+  color: rgba(25, 59, 50, 0.68) !important;
+}
+html[data-theme='light'] .border-\[\#428475\] {
+  border-color: #bdd4c9 !important;
+}
+html[data-theme='light'] .bg-\[\#428475\] {
+  background-color: #dfede6 !important;
+}
+html[data-theme='light'] .text-\[\#89D7B7\] {
+  color: #28705d !important;
+}
+html[data-theme='light'] .border-\[\#89D7B7\] {
+  border-color: #4d927b !important;
+}
+html[data-theme='light'] .bg-\[\#89D7B7\] {
+  background-color: #236b58 !important;
+}
+/* Neutral cream surfaces keep dark ink. Filled mint primary actions invert to white. */
+html[data-theme='light'] .text-\[\#1A312C\] {
+  color: #193b32 !important;
+}
+html[data-theme='light'] .bg-\[\#89D7B7\].text-\[\#1A312C\] {
+  color: #ffffff !important;
+}
+html[data-theme='light'] .bg-\[\#FFF4E1\] {
+  background-color: #fffdfa !important;
+}
+html[data-theme='light'] input,
+html[data-theme='light'] textarea,
+html[data-theme='light'] select {
+  color-scheme: light;
+}
+html[data-theme='light'] ::selection {
+  background: #236b58;
+  color: #ffffff;
+}
