@@ -1,13 +1,15 @@
 import React, { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BanknoteIcon, QrCodeIcon, XIcon } from 'lucide-react'
+import { BanknoteIcon, QrCodeIcon, XIcon, Coins } from 'lucide-react'
+
 type SettleSheetProps = {
   open: boolean
   amount: number
   groupName: string
   onClose: () => void
-  onComplete: (method: 'QRPH' | 'Cash') => void
+  onComplete: (method: 'QRPH' | 'Cash' | 'Stellar') => void
 }
+
 export function SettleSheet({
   open,
   amount,
@@ -15,7 +17,18 @@ export function SettleSheet({
   onClose,
   onComplete,
 }: SettleSheetProps) {
-  const [method, setMethod] = useState<'QRPH' | 'Cash'>('QRPH')
+  const [method, setMethod] = useState<'QRPH' | 'Cash' | 'Stellar'>('QRPH')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async () => {
+    setLoading(true)
+    try {
+      await onComplete(method)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <AnimatePresence>
       {open && (
@@ -66,7 +79,8 @@ export function SettleSheet({
               </div>
               <button
                 onClick={onClose}
-                className="rounded-full p-2 text-[#FFF4E1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7]"
+                disabled={loading}
+                className="rounded-full p-2 text-[#FFF4E1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7] disabled:opacity-50"
                 aria-label="Close settlement sheet"
               >
                 <XIcon size={22} />
@@ -82,8 +96,9 @@ export function SettleSheet({
 
             <div className="mt-5 space-y-3">
               <button
+                disabled={loading}
                 onClick={() => setMethod('QRPH')}
-                className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7] ${method === 'QRPH' ? 'border-[#89D7B7] bg-[#24453d]' : 'border-[#428475]'}`}
+                className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7] disabled:opacity-50 ${method === 'QRPH' ? 'border-[#89D7B7] bg-[#24453d]' : 'border-[#428475]'}`}
               >
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#428475] text-[#FFF4E1]">
                   <QrCodeIcon size={22} />
@@ -95,9 +110,27 @@ export function SettleSheet({
                   </span>
                 </span>
               </button>
+
               <button
+                disabled={loading}
+                onClick={() => setMethod('Stellar')}
+                className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7] disabled:opacity-50 ${method === 'Stellar' ? 'border-[#89D7B7] bg-[#24453d]' : 'border-[#428475]'}`}
+              >
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#428475] text-[#FFF4E1]">
+                  <Coins size={22} />
+                </span>
+                <span>
+                  <span className="block font-bold text-[#FFF4E1]">Stellar Blockchain</span>
+                  <span className="text-xs text-[#FFF4E1]/65">
+                    Instant custodial testnet payment (fee-bumped)
+                  </span>
+                </span>
+              </button>
+
+              <button
+                disabled={loading}
                 onClick={() => setMethod('Cash')}
-                className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7] ${method === 'Cash' ? 'border-[#89D7B7] bg-[#24453d]' : 'border-[#428475]'}`}
+                className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7] disabled:opacity-50 ${method === 'Cash' ? 'border-[#89D7B7] bg-[#24453d]' : 'border-[#428475]'}`}
               >
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#428475] text-[#FFF4E1]">
                   <BanknoteIcon size={22} />
@@ -112,10 +145,18 @@ export function SettleSheet({
             </div>
 
             <button
-              onClick={() => onComplete(method)}
-              className="mt-5 w-full rounded-2xl bg-[#89D7B7] px-5 py-4 text-sm font-extrabold text-[#1A312C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7]"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="mt-5 w-full rounded-2xl bg-[#89D7B7] px-5 py-4 text-sm font-extrabold text-[#1A312C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7] disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Confirm {method} settlement
+              {loading ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#1A312C] border-t-transparent" />
+                  Processing on-chain...
+                </>
+              ) : (
+                `Confirm ${method} settlement`
+              )}
             </button>
           </motion.section>
         </motion.div>

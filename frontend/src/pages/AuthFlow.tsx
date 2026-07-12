@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { api } from '../api'
 import {
   ArrowRightIcon,
   Building2Icon,
@@ -49,12 +50,15 @@ export function AuthFlow({
   }, [step])
   const [loginSubstep, setLoginSubstep] = useState<'method' | 'input'>('method')
   const [method, setMethod] = useState<AuthMethod>('phone')
+  const [credential, setCredential] = useState('')
   const [name, setName] = useState('')
   const [payment, setPayment] = useState<PaymentMethod>('GCash')
+  const [paymentReference, setPaymentReference] = useState('')
   const [token, setToken] = useState('')
   const [legalOpen, setLegalOpen] = useState(false)
   const [legalMode, setLegalMode] = useState<'terms' | 'privacy'>('terms')
   const [selectedAvatar, setSelectedAvatar] = useState<number | null>(null)
+  const [error, setError] = useState('')
   return (
     <main className="min-h-screen w-full bg-[#1A312C] px-5 py-6 text-[#FFF4E1] sm:grid sm:place-items-center">
       <section className="mx-auto w-full max-w-md">
@@ -152,6 +156,7 @@ export function AuthFlow({
                       <button
                         onClick={() => {
                           setMethod('phone')
+                          setCredential('')
                           setLoginSubstep('input')
                         }}
                         className="flex items-center justify-center gap-2 rounded-[28px] bg-[#89D7B7] py-4 text-sm font-bold text-[#1A312C] shadow-[0_0_15px_rgba(137,215,183,0.3)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7]"
@@ -161,6 +166,7 @@ export function AuthFlow({
                       <button
                         onClick={() => {
                           setMethod('email')
+                          setCredential('')
                           setLoginSubstep('input')
                         }}
                         className="flex items-center justify-center gap-2 rounded-[28px] border border-[#428475] bg-[#24453d]/40 py-4 text-sm font-bold text-[#FFF4E1] transition hover:bg-[#24453d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7]"
@@ -170,6 +176,7 @@ export function AuthFlow({
                       <button
                         onClick={() => {
                           setMethod('google')
+                          setCredential('google_dummy_user_123')
                           setLoginSubstep('input')
                         }}
                         className="flex items-center justify-center gap-2 rounded-[28px] bg-[#FFF4E1] py-4 text-sm font-bold text-[#1A312C] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFF4E1]"
@@ -226,6 +233,11 @@ export function AuthFlow({
                   >
                     ← Back to methods
                   </button>
+                  {error && (
+                    <p className="mb-4 text-xs font-bold text-[#D9867B] bg-[#D9867B]/10 border border-[#D9867B]/20 rounded-xl px-4 py-2">
+                      {error}
+                    </p>
+                  )}
                   {method === 'phone' && (
                     <label>
                       <span className="mb-2 block text-sm font-semibold">
@@ -234,6 +246,8 @@ export function AuthFlow({
                       <input
                         type="tel"
                         inputMode="tel"
+                        value={credential}
+                        onChange={(e) => setCredential(e.target.value)}
                         placeholder="+63 917 000 0000"
                         className="w-full rounded-2xl border border-[#428475] bg-[#1A312C] px-4 py-3.5 text-[#FFF4E1] placeholder:text-[#FFF4E1]/40 focus:border-[#89D7B7] focus:outline-none"
                       />
@@ -246,6 +260,8 @@ export function AuthFlow({
                       </span>
                       <input
                         type="email"
+                        value={credential}
+                        onChange={(e) => setCredential(e.target.value)}
                         placeholder="you@example.com"
                         className="w-full rounded-2xl border border-[#428475] bg-[#1A312C] px-4 py-3.5 text-[#FFF4E1] placeholder:text-[#FFF4E1]/40 focus:border-[#89D7B7] focus:outline-none"
                       />
@@ -258,7 +274,14 @@ export function AuthFlow({
                     </div>
                   )}
                   <button
-                    onClick={() => setStep('profile')}
+                    onClick={() => {
+                      if (!credential.trim()) {
+                        setError('Please fill in your credentials');
+                        return;
+                      }
+                      setError('');
+                      setStep('profile');
+                    }}
                     className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#89D7B7] px-5 py-4 text-sm font-extrabold text-[#1A312C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7]"
                   >
                     {method === 'google' ? 'Continue with Google' : 'Continue'}{' '}
@@ -309,6 +332,11 @@ export function AuthFlow({
               <p className="mt-3 text-base font-medium text-[#FFF4E1]/70">
                 Add a photo and display name so your roommates know it's you.
               </p>
+              {error && (
+                <p className="mt-3 text-sm font-semibold text-[#D9867B] bg-[#D9867B]/10 border border-[#D9867B]/20 rounded-xl px-4 py-2">
+                  {error}
+                </p>
+              )}
 
               <div className="mt-10 flex flex-col items-center">
                 <div className="relative">
@@ -368,13 +396,37 @@ export function AuthFlow({
                 </label>
 
                 <button
-                  onClick={() => setStep('payment')}
+                  onClick={async () => {
+                    if (!name.trim()) {
+                      setError('Please enter a display name');
+                      return;
+                    }
+                    setError('');
+                    try {
+                      const avatarName = selectedAvatar !== null ? `avatar_${selectedAvatar}` : null;
+                      await api.login(method, credential, name, avatarName);
+                      setStep('payment');
+                    } catch (err) {
+                      console.error(err);
+                      setError(err.message || 'Login failed');
+                    }
+                  }}
                   className="mt-16 flex w-full items-center justify-center gap-2 rounded-[28px] bg-[#89D7B7] py-4 text-sm font-bold text-[#1A312C] shadow-[0_0_15px_rgba(137,215,183,0.3)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7]"
                 >
                   Continue <ArrowRightIcon size={18} />
                 </button>
                 <button
-                  onClick={() => setStep('payment')}
+                  onClick={async () => {
+                    setError('');
+                    const defaultName = name || `User_${credential.slice(-4)}`;
+                    try {
+                      await api.login(method, credential, defaultName, null);
+                      setStep('payment');
+                    } catch (err) {
+                      console.error(err);
+                      setError(err.message || 'Login failed');
+                    }
+                  }}
                   className="mt-6 mb-8 text-sm font-bold text-[#FFF4E1]/70 hover:text-[#FFF4E1]"
                 >
                   Skip for now
@@ -419,7 +471,11 @@ export function AuthFlow({
               <div className="mt-8 flex flex-col gap-4">
                 <div
                   className={`rounded-[20px] border p-4 transition-all ${payment === 'GCash' ? 'border-[#89D7B7] bg-[#428475]' : 'border-[#428475] bg-[#24453d] cursor-pointer hover:border-[#89D7B7]/50'}`}
-                  onClick={() => setPayment('GCash')}
+                  onClick={() => {
+                    setPayment('GCash');
+                    setPaymentReference('');
+                    setError('');
+                  }}
                 >
                   <div className="flex items-center gap-4">
                     <div className={`grid h-12 w-12 place-items-center rounded-xl ${payment === 'GCash' ? 'bg-[#24453d] text-[#89D7B7]' : 'bg-[#1A312C] text-[#FFF4E1]/50'}`}>
@@ -450,6 +506,8 @@ export function AuthFlow({
                           <Phone size={16} className="mr-3 text-[#FFF4E1]/50" />
                           <input
                             type="tel"
+                            value={paymentReference}
+                            onChange={(e) => setPaymentReference(e.target.value)}
                             placeholder="09XX XXX XXXX"
                             className="w-full bg-transparent text-sm text-[#FFF4E1] placeholder:text-[#FFF4E1]/30 focus:outline-none"
                           />
@@ -461,7 +519,11 @@ export function AuthFlow({
 
                 <div
                   className={`rounded-[20px] border p-4 transition-all ${payment === 'Maya' ? 'border-[#89D7B7] bg-[#428475]' : 'border-[#428475] bg-[#24453d] cursor-pointer hover:border-[#89D7B7]/50'}`}
-                  onClick={() => setPayment('Maya')}
+                  onClick={() => {
+                    setPayment('Maya');
+                    setPaymentReference('');
+                    setError('');
+                  }}
                 >
                   <div className="flex items-center gap-4">
                     <div className={`grid h-12 w-12 place-items-center rounded-xl ${payment === 'Maya' ? 'bg-[#24453d] text-[#89D7B7]' : 'bg-[#1A312C] text-[#FFF4E1]/50'}`}>
@@ -492,6 +554,8 @@ export function AuthFlow({
                           <Phone size={16} className="mr-3 text-[#FFF4E1]/50" />
                           <input
                             type="tel"
+                            value={paymentReference}
+                            onChange={(e) => setPaymentReference(e.target.value)}
                             placeholder="09XX XXX XXXX"
                             className="w-full bg-transparent text-sm text-[#FFF4E1] placeholder:text-[#FFF4E1]/30 focus:outline-none"
                           />
@@ -503,7 +567,11 @@ export function AuthFlow({
 
                 <div
                   className={`rounded-[20px] border p-4 transition-all ${payment === 'Bank' ? 'border-[#89D7B7] bg-[#428475]' : 'border-[#428475] bg-[#24453d] cursor-pointer hover:border-[#89D7B7]/50'}`}
-                  onClick={() => setPayment('Bank')}
+                  onClick={() => {
+                    setPayment('Bank');
+                    setPaymentReference('');
+                    setError('');
+                  }}
                 >
                   <div className="flex items-center gap-4">
                     <div className={`grid h-12 w-12 place-items-center rounded-xl ${payment === 'Bank' ? 'bg-[#24453d] text-[#89D7B7]' : 'bg-[#1A312C] text-[#FFF4E1]/50'}`}>
@@ -534,6 +602,8 @@ export function AuthFlow({
                           <Building2Icon size={16} className="mr-3 text-[#FFF4E1]/50" />
                           <input
                             type="text"
+                            value={paymentReference}
+                            onChange={(e) => setPaymentReference(e.target.value)}
                             placeholder="0000 0000 0000"
                             className="w-full bg-transparent text-sm text-[#FFF4E1] placeholder:text-[#FFF4E1]/30 focus:outline-none"
                           />
@@ -545,8 +615,26 @@ export function AuthFlow({
               </div>
 
               <div className="mt-8 flex flex-1 flex-col justify-end">
+                {error && (
+                  <p className="mb-4 text-xs font-bold text-[#D9867B] bg-[#D9867B]/10 border border-[#D9867B]/20 rounded-xl px-4 py-2">
+                    {error}
+                  </p>
+                )}
                 <button
-                  onClick={onComplete}
+                  onClick={async () => {
+                    if (!paymentReference.trim()) {
+                      onComplete();
+                      return;
+                    }
+                    setError('');
+                    try {
+                      await api.linkPaymentMethod(payment, paymentReference);
+                      onComplete();
+                    } catch (err) {
+                      console.error(err);
+                      setError(err.message || 'Linking payment method failed');
+                    }
+                  }}
                   className="flex w-full items-center justify-center gap-2 rounded-[28px] bg-[#89D7B7] py-4 text-sm font-bold text-[#1A312C] shadow-[0_0_15px_rgba(137,215,183,0.3)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#89D7B7]"
                 >
                   Finish Setup <ArrowRightIcon size={18} />
