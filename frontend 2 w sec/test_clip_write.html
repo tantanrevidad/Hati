@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
+.logo-text {
+  font-family: 'Nunito', sans-serif;
+  font-size: 8rem;
+  font-weight: 900;
+  display: inline-block;
+  background: linear-gradient(to right, white 50%, transparent 50%);
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: write 2s linear forwards;
+}
+@keyframes write {
+  to { background-position: 0 0; }
+}
+body { background: black; }
+</style>
+<body>
+  <div class="logo-text">LiSTA</div>
+</body>
+</html>
