@@ -1,0 +1,94 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Outfit:wght@100..900&family=Pacifico&family=Grand+Hotel&family=Comfortaa:wght@400;700&family=Nunito:wght@900&display=swap');
+
+@theme {
+  --font-sans: 'Outfit', sans-serif;
+  --font-cursive: 'Caveat', cursive;
+  --font-sweet-apricot: 'Pacifico', 'Grand Hotel', 'Caveat', cursive;
+  
+  --color-paper-light: #F7F5EC;
+  --color-paper-dark: #30373C;
+  
+  --color-leaf-pink: #EFA8B5;
+  --color-leaf-peach: #F29E91;
+  --color-leaf-yellow: #E8DD95;
+  --color-leaf-green: #A5C09A;
+
+  --color-leaf-pink-dark: #CD5878;
+  --color-leaf-peach-dark: #DD6E78;
+  --color-leaf-yellow-dark: #E3D271;
+  --color-leaf-green-dark: #7C9F62;
+  
+  --color-line-light: rgba(232, 221, 149, 0.6);
+  --color-line-dark: rgba(227, 210, 113, 0.15);
+}
+
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  @apply bg-[#F7F5EC] text-slate-800 dark:bg-[#30373C] dark:text-slate-200;
+}
+
+/* Custom Selection Highlight Style matching the palette and ensuring perfect high contrast text visibility */
+::selection {
+  background-color: #EFA8B5 !important; /* leaf-pink */
+  color: #0f172a !important; /* deep slate */
+}
+
+.dark ::selection {
+  background-color: #CD5878 !important; /* leaf-pink-dark */
+  color: #ffffff !important;
+}
+
+/* Force autofill backgrounds and text colors to remain perfectly visible and high contrast */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important; /* deep slate */
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus, 
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #090d16 inset !important;
+  -webkit-text-fill-color: #f8fafc !important; /* light slate */
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.notebook-bg {
+  background-color: var(--color-paper-light);
+  background-image: 
+    linear-gradient(var(--color-line-light) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-leaf-peach) 1px, transparent 1px);
+  background-size: 100% 2rem, 100% 100%;
+  background-position: 0 0, 3rem 0;
+}
+
+.dark .notebook-bg {
+  background-color: var(--color-paper-dark);
+  background-image: 
+    linear-gradient(var(--color-line-dark) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-leaf-peach-dark) 1px, transparent 1px);
+  background-size: 100% 2rem, 100% 100%;
+  background-position: 0 0, 3rem 0;
+}
+
+.font-cursive {
+  font-family: 'Caveat', cursive;
+}
+
+.font-sweet-apricot {
+  font-family: 'Pacifico', 'Grand Hotel', 'Caveat', cursive;
+}
