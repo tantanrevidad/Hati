@@ -1,18 +1,62 @@
 # 🧾 Lista: Your tab. settled.
 
-**Lista** (formerly *Hati*) is a premium, mobile-first roommate expense-sharing and smart settlement application designed for the APAC Stellar Hackathon. 
+**Lista** (formerly *Hati*) is a premium, mobile-first roommate expense-sharing and smart settlement application designed for the **APAC Stellar Hackathon 2026**. 
 
-By combining the **Stellar Blockchain** for stablecoin payments with a **Splitwise-style debt netting engine** and **Google's Gemini API** for receipt scanning, Lista makes splitting household bills, dorm expenses, and trips completely effortless.
+By combining the **Stellar Blockchain** for stablecoin payments with a **Splitwise-style debt netting engine** and **Google's Gemini API** for receipt scanning, Lista makes splitting household bills, dorm expenses, and shared living costs completely effortless.
 
 ---
 
-## 🎨 Premium Design System
+## 📖 Master Documentation Directory (`/docs`)
 
-Lista features a tailored **Color Hunt** theme built to feel warm, organic, and premium:
-* 🌲 **Deep Forest Green** (`#1A312C` / `var(--color-bg)`): Main background colors.
-* 🌿 **Teal / Sage Green** (`#428475` / `var(--color-accent)`): Cards, badges, and status borders.
-* 🍃 **Mint / Light Teal** (`#89D7B7` / `var(--color-primary)`): Buttons, focus states, and primary actions.
-* 🍦 **Warm Cream / Ivory** (`#FFF4E1` / `var(--color-text)`): Clean typography and high contrast layout.
+This README serves as a master summary of all design specifications, system architectures, and research files in the project. For deeper technical and market analysis, refer directly to the following documents:
+
+*   📘 **[Project Outline](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Project%20Outline.md)**: High-level overview of the problem space, proposed solution, and product mechanics.
+*   🗄️ **[Back-end Outline](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Back-end%20Outline.md)**: Server components, database architectures, and outline of the offline-first sync mechanism.
+*   🎨 **[Front-End Outline](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Front-End%20Outline.md)**: Design principles, Splitwise comparative design, UX flows, and HSL style palettes.
+*   🤝 **[Contracts Alignment](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/contracts.md)**: Normalized database tables, API payloads, endpoint routes, and strict naming conventions.
+*   📅 **[Features Roadmap](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/features_roadmap.md)**: Project timelines, Gantt charts, feature progress logs, and post-hackathon plans.
+*   📊 **[Market Research](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Market%20Research.md)**: APAC market sizing (TAM/SAM/SOM), competitor feature matrix, user personas, and monetization strategies.
+*   📝 **[Notes - Checkpoint Meeting 1](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Notes%20-%20Checkpoint%20Meeting%201.md)**: Hackathon timelines, evaluation metrics, tips for success, and post-hackathon grant opportunities.
+*   🌐 **[Stellar Integration Guide](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/stellar_integration.md)**: Detailed on-chain payment architectures, trustline setups, faucets, and fee-sponsorship mechanics.
+*   📋 **[Task Monitoring](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Task%20Monitoring.md)**: Work breakdown structure, role assignments, pacing schedules, and committed vs. stretch checklists.
+*   🔗 **[Resources Index](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Resources.md)**: Reference URLs, glossary terms, and design inspiration guides.
+*   🌟 **[Main Features](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Main%20Features.md)**: Breakdown of core user-facing features and interaction mechanics.
+
+---
+
+## 📌 Project Overview & Positioning
+
+### 🧩 The Problem
+Urbanization and internal migration in Southeast Asia have driven a surge in co-living and student housing. However, shared-living communities face structural challenges:
+*   **Tedious Manual Math:** Calculating "who owes whom" gets complex with multiple roommates.
+*   **Awkward Social Friction:** Roommates find chasing each other for bill settlements awkward.
+*   **Infrastructure Instability:** Intermittent power and internet drops in concrete dorms make online payments fail frequently.
+
+### 💡 The Solution: Lista
+Lista is an e-wallet designed to manage group expenses seamlessly:
+1.  **Smart Netting Engine:** Graph-simplification reduces multi-party debts into minimal single payments.
+2.  **AI Invoice Scanner:** Powered by Google's Gemini API, users take a photo of a receipt, and the app auto-splits line items.
+3.  **Invisible Stellar Rails:** Instant settlements via stablecoin transfers. Users do not need to manage gas fees or private keys.
+4.  **Offline Resiliency:** Ledgers can be viewed and expense intents logged fully offline, syncing the moment a connection is re-established.
+
+---
+
+## 📊 Market Analysis & Competitor Matrix
+
+Global tracking apps lack regional financial rails, while local wallets lack expense-splitting math. 
+
+| Feature / Capability | Splitwise (Global Tracker) | GCash / Maya (Local Wallets) | Existing Hati Apps (Calculators) | Lista (The Solution) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Debt Netting Math** | **Excellent** | None | Basic | **Excellent** |
+| **Direct Money Settlement** | External (Manual) | **Native** | External (Manual) | **Native (Stellar/APIs)** |
+| **Offline Resilience** | Fails Offline | Fails Offline | Calculates Only | **Caches & Auto-Syncs** |
+| **AI Receipt Scanning** | Premium-Only | No | No | **Core Feature** |
+| **App-less Onboarding** | Requires App | Via QR | Requires App | **Web QR / No Install** |
+
+### Market Sizing
+*   **TAM:** Digital natives and digital wallet users in emerging APAC markets (Vietnam, Indonesia, Philippines).
+*   **SAM:** Students, co-living residents, and migrant workers in high-density urban centers experiencing unstable internet.
+*   **SOM:** Year 1 targeting dormitories and co-living hubs in Metro Manila.
 
 ---
 
@@ -21,14 +65,14 @@ Lista features a tailored **Color Hunt** theme built to feel warm, organic, and 
 ```mermaid
 flowchart TB
     subgraph Client [React Frontend - Vite]
-        UI[Vite UI client on port 5173]
-        APIClient[api.js client fetches endpoints]
+        UI[Vite UI Client]
+        APIClient[api.js wrapper handles promises]
     end
 
-    subgraph Service [Express API Backend - Port 3000]
+    subgraph Service [Express API Backend & Supabase]
         Router[Router handles Auth, Groups, Settlements]
         AuthGate[JWT Middleware authorizes session]
-        DB[(lista.db - SQLite)]
+        DB[(PostgreSQL Pool - Supabase)]
         Debt[debt.js nets and simplifies roommate debts]
         StellarSvc[stellar.js manages wallets & transactions]
     end
@@ -52,95 +96,123 @@ flowchart TB
 
 ---
 
-## ⚡ Core Features Built from Scratch
+## 🌐 Stellar USDC Integration & Gas-Free Settlement
 
-### 1. 🗄️ Database & Schema Design
-* Built using Node's native `node:sqlite` module to guarantee C++ compiler-free execution across all development environments (no local node-gyp build locks).
-* Normalized schemas mapping relationships between Users, Groups, Group Memberships, Expenses, Settlements, Cash Confirmations, and Nudges.
+To remove onboarding friction, Lista leverages a **custodial wallet model** combined with sponsored transactions.
 
-### 2. 🔐 Authentication & Onboarding
-* **Token-based JWT Authorization:** Standard secure bearer authentication gate.
-* **Lazy Registrations:** Registers users on-the-fly during their first login via phone, email, or Google accounts.
-* **Wallet-Linking:** Associates GCash/Maya/Bank reference tokens on onboarding for simulated fiat integrations.
+1.  **Custodial Account Generation:** Settle-up triggers a randomized keypair generation (`Ed25519`). Keys are saved in the DB, and Friendbot deposits test native `XLM` to activate the account.
+2.  **Sponsored trustlines:** Establishing a `USDC` trustline requires transaction gas. The backend signs the transaction with the user's key (fee: 0), wraps it in an outer fee-bump transaction sponsored by Lista's Treasury account, and submits it.
+3.  **Autonomous Testnet USDC Faucet:** Newly registered users are automatically minted **1,000 USDC** via the issuer key (`GBK52A...`) so they can test settlement flows instantly.
+4.  **Zero-Gas Payments:** Roommate-to-roommate transfers are wrapped in sponsored fee-bumps. **Users pay 0 XLM.**
 
-### 3. 👥 Group & Invite Link System
-* **Listahan Creation:** Group management with dynamic invite URL generation using secure UUID slugs.
-* **Instant Join Links:** Resolving invite links (`GET /join/:slug`) automatically registers the visitor as a group member, recalculates roommate debts, and returns the group's ledger details.
+---
 
-### 4. 🧮 Smart Split Engine & Debt netting
-* **Description Mention Parser:** Regex extracts `@mentions` (e.g., *"@Mark ordered extra rice"*) to automatically configure split participants list.
-* **Splitwise-Style Debt Netting:** Greedy netting algorithm that simplifies multi-party roommate debts into the minimal set of user-to-user transactions.
+## 🤝 API Contract & Data Schema (Core Endpoints)
 
-### 5. 💰 Multi-Party Cash Confirmations
-* Cash settlements remain in a pending state until **all** involved creditors acknowledge receipt of the funds. Once approvals are complete, the engine recalculates and nets the group balances.
-* **Nudge Rate Limiter:** Server-side rate limit enforces a maximum of **1 nudge per user pair per 24 hours** to prevent roommate spam.
-* **Auto-Archive Scheduler:** Tracks zero balances, automatically flagging groups for archiving after 7 days of inactivity.
+Full API specs and database structures are maintained in the **[Contracts Alignment Guide](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/contracts.md)**.
 
-### 6. 🌐 Stellar USDC Stablecoin Payments
-* **Automatic Trustlines:** Establishes USDC trustlines to Circle's Testnet issuer (`GBK52A...`) during custodial wallet generation.
-* **Sponsored Fee-Bumping:** Wraps inner transactions in an outer fee-bump transaction signed by our central Treasury account. **Users pay zero XLM transaction fees.**
-* **Self-Funded USDC Faucet:** Automatically mints and transfers **1,000 USDC** to newly created user accounts on-chain to enable instant testing.
+### Core Database Entities
+*   `User`: Contains profile metadata, linked payment method references, and custodial `walletAddress`/`walletSecret`.
+*   `Group`: Lists member IDs, status (`active`/`archived`), and timestamp of zero balances (`zeroBalanceSince`).
+*   `Expense`: Tracks the payer, split details, category, list of parsed `@mentions`, and source (`manual_description` / `invoice_scan`).
+*   `Settlement`: Tracks group ledger transactions, status (`pending`/`confirmed`), and the `confirmations` list for multi-party cash confirmations.
+*   `Nudge`: Tracks nudge logs, rate-limited server-side to **1 nudge per user pair per 24 hours**.
+
+### Primary API Routes
+*   `POST /auth/login`: Lazy login that authenticates and creates profiles on-the-fly.
+*   `POST /users/me/payment-methods`: Links GCash/Maya reference tokens during onboarding.
+*   `POST /groups/:id/expenses`: Saves expenses and parses description `@mentions` to assign participants automatically.
+*   `POST /groups/:id/expenses/scan`: Uploads receipt images to Gemini AI for structured line-item extraction.
+*   `POST /settlements`: Initiates pending cash confirmations or broadcasts live Stellar transactions.
+*   `POST /groups/:id/nudge`: Triggers in-app alerts to delinquent roommates.
 
 ---
 
 ## 🛠️ Local Development Setup
 
-### Backend Setup
-1. Navigate to the `backend/` directory:
-   ```bash
-   cd backend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Create a `.env` file in the `backend/` root directory:
-   ```env
-   PORT=3000
-   JWT_SECRET=supersecretapachatihackathonkey2026
-   HORIZON_URL=https://horizon-testnet.stellar.org
-   FEE_BUMPER_SECRET= # Optional: Leave blank to generate a temporary funded fee bumper
-   ```
-4. Run the Express server:
-   ```bash
-   npm run dev
-   ```
-5. Run the test suites:
-   * **Complete E2E Integration Suite:**
-     ```bash
-     npm test
-     ```
-   * **Authentication Verification:**
-     ```bash
-     node tests/auth_test.js
-     ```
-   * **Gemini AI Receipt Scan Verification:**
-     ```bash
-     node tests/gemini_test.js
-     ```
-   * **Concurrency Stress Testing:**
-     ```bash
-     node tests/stress_test.js
-     ```
+### Project Monorepo Structure
+The project is configured using **npm workspaces** to automatically handle dependencies across both subprojects:
+```
+Lista/
+├── package.json         ← Workspace mappings & unified build script
+├── vercel.json          ← Routing proxy rules
+├── api/
+│   └── index.js         ← Serverless deployment entrypoint
+├── backend/
+│   ├── package.json
+│   ├── src/             ← Express app, DB connection pool, and services
+│   └── stress_test.js   ← Concurrent load test script
+└── frontend/
+    ├── package.json
+    ├── src/             ← React Vite application
+    └── dist/            ← Production frontend bundle
+```
 
-### Frontend Setup
-1. Navigate to the `frontend/` directory:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the Vite development server:
-   ```bash
-   npm run dev
-   ```
-4. Open `http://localhost:5173` in your browser.
+### Installation Steps
+
+1.  **Clone and Install Workspace Dependencies:**
+    At the project root directory, run:
+    ```bash
+    npm install
+    ```
+    *This automatically installs packages for both `frontend` and `backend` subdirectories.*
+
+2.  **Configure Environment Variables:**
+    Create a `.env` file in the `/backend` directory containing:
+    ```env
+    PORT=3001
+    DATABASE_URL=postgresql://postgres.eloyolwfnesymjqvnyal:2-4chimkenLista@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
+    JWT_SECRET=supersecretapachatihackathonkey2026
+    GEMINI_API_KEY=your_gemini_api_key_here
+    HORIZON_URL=https://horizon-testnet.stellar.org
+    FEE_BUMPER_SECRET= # Optional: Leave blank to generate/fund a temporary bumper on-chain
+    ```
+
+3.  **Run Development Servers:**
+    *   **Backend Server:**
+        ```bash
+        cd backend
+        npm run dev
+        ```
+    *   **Frontend Vite App:**
+        ```bash
+        cd frontend
+        npm run dev
+        ```
+        Open `http://localhost:5173` to interact with the user interface.
+
+4.  **Run Stress & Type Testing:**
+    *   **Backend Stress Tests:**
+        Ensure the backend server is running, then execute:
+        ```bash
+        node backend/stress_test.js http://localhost:3001
+        ```
+    *   **Frontend Compilation Check:**
+        ```bash
+        cd frontend
+        npm run lint
+        ```
+
+---
+
+## 👥 Hackathon Team & Roles
+
+As documented in **[Task Monitoring Role Assignments](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Task%20Monitoring.md#L52-L60)**, our roles are divided as follows:
+
+*   👨‍💻 **Stellar / Blockchain Lead:** **Christanne Tedd Revidad** — Core Stellar SDK integrations, Freighter plumbing, custodial wallet APIs, and fee-bumper sponsorship.
+*   🎨 **Frontend Lead (Host / Settle Flow):** **Xancho Monreal** — App design system, dashboard interfaces, QR code invites, and settlement drawers.
+*   ⚙️ **Backend & Integration Lead:** *(Antigravity)* — DB migration (SQLite to Supabase Postgres), API routing, JWT auth gates, and the Splitwise-style greedy netting engine.
 
 ---
 
 ## 🔍 On-Chain Verification
 
-You can review a live, fee-bumped USDC stablecoin payment transaction submitted by Lista's smart settlement engine on the Stellar testnet:
-* **Stellar Expert URL:** [bcc674bd8a807111df28bc70638776ca720f614595f8111ae8755eeb5fbf3f23](https://stellar.expert/explorer/testnet/tx/bcc674bd8a807111df28bc70638776ca720f614595f8111ae8755eeb5fbf3f23)
+To verify that the smart settlement engine submits live, fee-bumped transactions successfully, review this on-chain record:
+*   **Transaction Hash:** `bcc674bd8a807111df28bc70638776ca720f614595f8111ae8755eeb5fbf3f23`
+*   **Stellar Expert Testnet Explorer:** [View Transaction Details](https://stellar.expert/explorer/testnet/tx/bcc674bd8a807111df28bc70638776ca720f614595f8111ae8755eeb5fbf3f23)
+
+---
+
+## ⚖️ Open-Source License
+
+This project is open-source and licensed under the **[MIT License](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/LICENSE)**.
