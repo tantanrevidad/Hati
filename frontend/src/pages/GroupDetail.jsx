@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, HandCoins, Bell, BarChart3, List, Share2, Archive } from "lucide-react";
+import { ArrowLeft, Plus, HandCoins, Bell, BarChart3, List, Share2, Archive, X, Copy } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { formatPeso, getExpensesByGroup, getUserById, getInitials, getAvatarColor } from "../data/mockData";
 import ExpenseItem from "../components/ExpenseItem";
@@ -8,6 +8,8 @@ import PieChart from "../components/PieChart";
 import NudgeModal from "../components/NudgeModal";
 import BottomNav from "../components/BottomNav";
 import AvatarStack from "../components/AvatarStack";
+import QRCode from "react-qr-code";
+
 
 export default function GroupDetail() {
   const { id } = useParams();
@@ -23,6 +25,7 @@ export default function GroupDetail() {
   const [nudgeTarget, setNudgeTarget] = useState(null);
   const [showShareToast, setShowShareToast] = useState(false);
   const [expandedExpenseId, setExpandedExpenseId] = useState(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   if (!group) return (
     <div className="page" style={{ textAlign: "center", paddingTop: 80 }}>
@@ -38,6 +41,9 @@ export default function GroupDetail() {
   const debtors = ledger?.balances.filter(
     (b) => b.userId !== state.user.id && b.netBalance < 0
   );
+
+  const joinSlug = group.joinSlug || group.id.slice(-8);
+  const joinUrl = `${window.location.origin}/join/${joinSlug}`;
 
   const handleShare = () => {
     setShowShareToast(true);
@@ -96,22 +102,50 @@ export default function GroupDetail() {
           padding: "56px 24px 24px",
           borderBottom: "1px solid var(--color-border)",
         }}>
-          <div className="row-between" style={{ marginBottom: 20 }}>
-            <button className="back-btn" onClick={() => navigate("/home")}>
-              <ArrowLeft size={18} />
-            </button>
-            {/* Center aligned title with custom icons */}
-            <div className="row gap-xs" style={{ alignItems: "center" }}>
-              <span style={{ fontSize: "1.4rem" }}>
+          <div className="row-between" style={{ marginBottom: 20, alignItems: "center" }}>
+            <div className="row gap-xs" style={{ alignItems: "center", flex: 1, minWidth: 0 }}>
+              <button className="back-btn" onClick={() => navigate("/home")} style={{ marginRight: 8, flexShrink: 0 }}>
+                <ArrowLeft size={18} />
+              </button>
+              <span style={{ fontSize: "1.3rem", flexShrink: 0 }}>
                 {group.name.match(/[\u{1F300}-\u{1FFFF}]/u)?.[0] || "📋"}
               </span>
-              <h1 className="text-lg font-bold" style={{ margin: 0 }}>
+              <h1 className="text-md font-bold" style={{ 
+                margin: 0, 
+                whiteSpace: "nowrap", 
+                overflow: "hidden", 
+                textOverflow: "ellipsis",
+                maxWidth: "140px"
+              }}>
                 {group.name.replace(/\s*[\u{1F300}-\u{1FFFF}]\s*/gu, "").trim()}
               </h1>
             </div>
-            <button className="back-btn" onClick={handleShare}>
-              <Share2 size={18} />
-            </button>
+            
+            {/* Profiles stack & plus button */}
+            <div className="row gap-xs" style={{ alignItems: "center", flexShrink: 0 }}>
+              <AvatarStack userIds={group.memberIds || []} size="sm" />
+              <button 
+                onClick={() => setShowInviteModal(true)}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "var(--color-primary-dim)",
+                  border: "1.5px solid var(--color-border)",
+                  color: "var(--color-primary)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  marginLeft: 4,
+                  transition: "all 0.2s"
+                }}
+                className="btn-hover"
+                title="Invite Roommates"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Mockup Cards: My Expenses & Group Total side-by-side */}
@@ -389,6 +423,118 @@ export default function GroupDetail() {
           toUserId={nudgeTarget}
           onClose={() => setNudgeTarget(null)}
         />
+      )}
+
+      {showInviteModal && (
+        <div className="modal-overlay" onClick={() => setShowInviteModal(false)}>
+          <div className="modal-sheet anim-scale-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360, margin: "auto" }}>
+            <div className="modal-handle" />
+            <div className="row-between" style={{ marginBottom: 16 }}>
+              <h3 className="font-bold text-lg" style={{ color: "var(--color-primary)" }}>Invite Friends</h3>
+              <button 
+                onClick={() => setShowInviteModal(false)}
+                style={{ background: "none", border: "none", color: "var(--color-text-3)", cursor: "pointer" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <p className="text-xs text-muted" style={{ marginBottom: 20 }}>
+              Share this QR code or copy the link below to invite roommates to <strong>{group.name}</strong>.
+            </p>
+
+            <div style={{ 
+              background: "#fff", 
+              padding: 16, 
+              borderRadius: "var(--radius-md)", 
+              border: "1px solid var(--color-border)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              margin: "0 auto 20px",
+              width: 172,
+              height: 172,
+              boxShadow: "inset 0 2px 4px rgba(0,0,0,0.06)"
+            }}>
+              <QRCode 
+                value={joinUrl}
+                size={140}
+                fgColor="#13463B"
+                bgColor="#ffffff"
+              />
+            </div>
+
+            <div className="row gap-xs" style={{ 
+              background: "var(--color-surface-2)", 
+              padding: "8px 12px", 
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-border)",
+              marginBottom: 16,
+              alignItems: "center"
+            }}>
+              <span className="text-xs text-muted-2" style={{ 
+                flex: 1, 
+                overflow: "hidden", 
+                textOverflow: "ellipsis", 
+                whiteSpace: "nowrap",
+                fontFamily: "monospace"
+              }}>
+                {joinUrl}
+              </span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(joinUrl);
+                  setShowShareToast(true);
+                  setTimeout(() => setShowShareToast(false), 2000);
+                }}
+                style={{ 
+                  background: "var(--color-primary-dim)", 
+                  border: "none", 
+                  color: "var(--color-primary)", 
+                  padding: "6px 10px", 
+                  borderRadius: "var(--radius-sm)",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: "0.75rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+                className="btn-hover"
+              >
+                <Copy size={12} /> Copy
+              </button>
+            </div>
+
+            <div className="stack gap-sm">
+              <button 
+                className="btn btn-primary btn-full"
+                onClick={async () => {
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: `Join ${group.name} on Lista`,
+                        text: `Hey! Use this link to join our Listahan "${group.name}" on Lista:`,
+                        url: joinUrl,
+                      });
+                    } catch (err) {
+                      console.log(err);
+                    }
+                  } else {
+                    navigator.clipboard.writeText(joinUrl);
+                    setShowShareToast(true);
+                    setTimeout(() => setShowShareToast(false), 2000);
+                  }
+                }}
+              >
+                <Share2 size={16} /> Share Link
+              </button>
+              <button className="btn btn-ghost btn-full" onClick={() => setShowInviteModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showShareToast && (
