@@ -8,6 +8,7 @@ interface ActivityItem {
   type: 'paid_by_you' | 'you_owe' | 'settled';
   title: string;
   groupName: string;
+  groupId: string;
   amount: number;
   person: string;
   date: string;
@@ -17,9 +18,10 @@ interface ActivityScreenProps {
   groups: { id: string; name: string }[];
   userName?: string;
   onBack: () => void;
+  onSelectGroup?: (group: any) => void;
 }
 
-export default function ActivityScreen({ groups, userName, onBack }: ActivityScreenProps) {
+export default function ActivityScreen({ groups, userName, onBack, onSelectGroup }: ActivityScreenProps) {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,6 +61,7 @@ export default function ActivityScreen({ groups, userName, onBack }: ActivityScr
                 type: 'settled',
                 title: 'LISTAHAN SETTLED',
                 groupName: group.name,
+                groupId: group.id,
                 amount: 0,
                 person: '',
                 date: latestDate
@@ -83,6 +86,7 @@ export default function ActivityScreen({ groups, userName, onBack }: ActivityScr
                   type: 'paid_by_you',
                   title: exp.description,
                   groupName: group.name,
+                  groupId: group.id,
                   amount: perPersonAmount,
                   person: getMemberName(pId),
                   date: exp.createdAt
@@ -95,6 +99,7 @@ export default function ActivityScreen({ groups, userName, onBack }: ActivityScr
                 type: 'you_owe',
                 title: exp.description,
                 groupName: group.name,
+                groupId: group.id,
                 amount: perPersonAmount,
                 person: payerName,
                 date: exp.createdAt
@@ -164,7 +169,16 @@ export default function ActivityScreen({ groups, userName, onBack }: ActivityScr
         ) : (
           <div className="space-y-4 max-w-2xl mx-auto pb-12">
             {activities.map(activity => (
-              <div key={activity.id} className="bg-white dark:bg-slate-900 p-4 rounded-[24px] shadow-sm border border-[#C8DACF] dark:border-slate-800 flex items-center justify-between">
+              <button 
+                key={activity.id} 
+                onClick={() => {
+                  const fullGroup = groups.find(g => g.id === activity.groupId);
+                  if (fullGroup && onSelectGroup) {
+                    onSelectGroup(fullGroup);
+                  }
+                }}
+                className="w-full text-left bg-white dark:bg-slate-900 p-4 rounded-[24px] shadow-sm border border-[#C8DACF] dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+              >
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0 ${
                     activity.type === 'paid_by_you' ? 'bg-leaf-green/20 text-leaf-green-dark' :
@@ -209,7 +223,7 @@ export default function ActivityScreen({ groups, userName, onBack }: ActivityScr
                     </span>
                   )}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}

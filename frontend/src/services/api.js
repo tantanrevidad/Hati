@@ -92,7 +92,7 @@ export const api = {
       category: expense.category.toLowerCase(),
       paidBy: expense.paidBy,
       splitType: expense.splitType || 'equal',
-      splitDetails: expense.participantIds ? { participantIds: expense.participantIds } : undefined
+      splitDetails: expense.splitDetails || (expense.participantIds ? { participantIds: expense.participantIds } : undefined)
     };
     return request('POST', `/groups/${groupId}/expenses`, payload);
   },

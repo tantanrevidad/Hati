@@ -179,11 +179,22 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
       // Save expenses to backend sequentially
       for (const expenseData of data.expenses) {
         const paidBy = findMemberId(expenseData.payer);
-        const participantIds = expenseData.splits.map((s: any) => findMemberId(s.person));
         
-        // Ensure paidBy is in splits
-        if (!participantIds.includes(paidBy)) {
-          participantIds.push(paidBy);
+        const totalBillCentavos = Math.round(expenseData.totalAmount * 100);
+        let totalOwedCentavos = 0;
+        const shares: Record<string, number> = {};
+        
+        expenseData.splits.forEach((s: any) => {
+          const mId = findMemberId(s.person);
+          const owedCentavos = Math.round(s.amountOwed * 100);
+          shares[mId] = (shares[mId] || 0) + owedCentavos;
+          totalOwedCentavos += owedCentavos;
+        });
+        
+        // Payer's share is the remaining amount of the bill
+        const payerShareCentavos = Math.max(0, totalBillCentavos - totalOwedCentavos);
+        if (payerShareCentavos > 0) {
+          shares[paidBy] = (shares[paidBy] || 0) + payerShareCentavos;
         }
 
         await api.createExpense(group.id, {
@@ -191,8 +202,8 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
           amount: expenseData.totalAmount,
           category: expenseData.expenseType,
           paidBy,
-          splitType: 'equal',
-          participantIds
+          splitType: 'custom',
+          splitDetails: { shares }
         });
       }
 
@@ -580,6 +591,41 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
                       className="px-3 py-1.5 bg-leaf-pink/15 dark:bg-leaf-pink-dark/10 hover:bg-leaf-pink/30 text-leaf-pink-dark dark:text-leaf-pink text-xs font-bold rounded-lg transition"
                     >
                       {nudgeLoading[debtor.id] ? 'Sending...' : status || 'Nudge'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Debts I owe list */}
+        {youOwe > 0 && ledger?.debts && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-[#C8DACF] dark:border-slate-700">
+            <span className="text-[10px] sm:text-xs font-bold uppercase text-leaf-pink dark:text-leaf-pink-dark block mb-3">You owe</span>
+            <div className="space-y-3">
+              {ledger.debts.filter((d: any) => d.fromUserId === currentUser.id).map((debt: any) => {
+                const creditor = members.find(m => m.id === debt.toUserId);
+                if (!creditor) return null;
+                return (
+                  <div key={creditor.id} className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-slate-800 pb-2 last:border-0 last:pb-0">
+                    <div>
+                      <span className="font-bold text-[#13463B] dark:text-white">{creditor.displayName}</span>
+                      <span className="text-xs text-leaf-pink dark:text-leaf-pink-dark ml-2">you owe them ₱{(debt.amount / 100).toFixed(2)}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedOweUser({
+                          userId: creditor.id,
+                          person: creditor.displayName,
+                          amount: debt.amount / 100,
+                          title: 'Simplified Balance'
+                        });
+                        setShowSettle(true);
+                      }}
+                      className="px-3 py-1.5 bg-[#13463B] hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition shadow-sm"
+                    >
+                      Settle Up
                     </button>
                   </div>
                 );

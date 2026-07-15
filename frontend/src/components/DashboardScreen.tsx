@@ -311,6 +311,10 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
             groups={groups}
             userName={userName}
             onBack={() => { setShowActivity(false); setIsMenuOpen(true); }}
+            onSelectGroup={(group) => {
+              setSelectedGroup(group);
+              setShowActivity(false);
+            }}
           />
         )}
       </AnimatePresence>
