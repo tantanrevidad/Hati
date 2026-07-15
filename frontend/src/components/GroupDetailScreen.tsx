@@ -6,7 +6,7 @@ import { api } from '../services/api';
 import QRCode from 'react-qr-code';
 
 interface GroupDetailScreenProps {
-  group: { id: string; name: string; members: number; color?: string };
+  group: { id: string; name: string; members: number; color?: string; hostId?: string };
   expenses: ExpenseItem[];
   setExpenses: React.Dispatch<React.SetStateAction<ExpenseItem[]>>;
   onBack: () => void;
@@ -21,6 +21,7 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qrph' | 'cash'>('qrph');
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
   const [joinUrl, setJoinUrl] = useState('');
   const [showShareToast, setShowShareToast] = useState(false);
 
@@ -394,37 +395,43 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
         </div>
 
         {/* Profiles Stack & Plus Button */}
-        <div className="flex items-center -space-x-1.5 flex-shrink-0 ml-4">
-          {members.slice(0, 3).map((m) => {
-            const initials = m.displayName
-              .split(' ')
-              .map((n: any) => n[0])
-              .join('')
-              .toUpperCase()
-              .slice(0, 2);
-            
-            const colors = ['bg-[#7C5CFC]', 'bg-[#00D2A0]', 'bg-[#FF5C7A]', 'bg-[#FFB347]', 'bg-[#4FC3F7]', 'bg-[#CE93D8]'];
-            const colorIndex = parseInt(m.id.replace(/\D/g, '') || '0', 10) % colors.length;
-            const bgClass = colors[isNaN(colorIndex) ? 0 : colorIndex];
+        <div className="flex items-center flex-shrink-0 ml-4">
+          <button 
+            onClick={() => setShowMembersModal(true)}
+            className="flex items-center -space-x-1.5 cursor-pointer hover:opacity-85 transition-opacity mr-1.5"
+            title="View Group Members"
+          >
+            {members.slice(0, 3).map((m) => {
+              const initials = m.displayName
+                .split(' ')
+                .map((n: any) => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2);
+              
+              const colors = ['bg-[#7C5CFC]', 'bg-[#00D2A0]', 'bg-[#FF5C7A]', 'bg-[#FFB347]', 'bg-[#4FC3F7]', 'bg-[#CE93D8]'];
+              const colorIndex = parseInt(m.id.replace(/\D/g, '') || '0', 10) % colors.length;
+              const bgClass = colors[isNaN(colorIndex) ? 0 : colorIndex];
 
-            return (
-              <div 
-                key={m.id}
-                className={`w-8 h-8 rounded-full border-2 border-[#F3EFE7] dark:border-[#121212] flex items-center justify-center text-[10px] font-bold text-white shadow-sm ${bgClass}`}
-                title={m.displayName}
-              >
-                {initials}
+              return (
+                <div 
+                  key={m.id}
+                  className={`w-8 h-8 rounded-full border-2 border-[#F3EFE7] dark:border-[#121212] flex items-center justify-center text-[10px] font-bold text-white shadow-sm ${bgClass}`}
+                  title={m.displayName}
+                >
+                  {initials}
+                </div>
+              );
+            })}
+            {members.length > 3 && (
+              <div className="w-8 h-8 rounded-full border-2 border-[#F3EFE7] dark:border-[#121212] bg-[#C8DACF] dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-[#13463B] dark:text-white shadow-sm">
+                +{members.length - 3}
               </div>
-            );
-          })}
-          {members.length > 3 && (
-            <div className="w-8 h-8 rounded-full border-2 border-[#F3EFE7] dark:border-[#121212] bg-[#C8DACF] dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-[#13463B] dark:text-white shadow-sm">
-              +{members.length - 3}
-            </div>
-          )}
+            )}
+          </button>
           <button 
             onClick={() => setShowInviteModal(true)}
-            className="w-8 h-8 rounded-full border-2 border-dashed border-[#13463B] dark:border-slate-500 bg-transparent flex items-center justify-center text-[#13463B] dark:text-slate-350 ml-2 cursor-pointer hover:bg-[#E5F0E9] dark:hover:bg-slate-800 transition-colors shadow-sm"
+            className="w-8 h-8 rounded-full border-2 border-dashed border-[#13463B] dark:border-slate-500 bg-transparent flex items-center justify-center text-[#13463B] dark:text-slate-350 cursor-pointer hover:bg-[#E5F0E9] dark:hover:bg-slate-800 transition-colors shadow-sm"
             title="Invite Roommates"
           >
             <Plus size={16} className="stroke-[3]" />
@@ -855,6 +862,106 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
               >
                 {selectedOweUser ? 'Go Back' : 'Close'}
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Group Members Modal */}
+      <AnimatePresence>
+        {showMembersModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[#13463B]/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={() => setShowMembersModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl flex flex-col max-h-[80vh]"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-2xl font-black text-[#13463B] dark:text-white">Group Members</h3>
+                  <p className="text-[#316D5F] dark:text-slate-400 text-xs mt-1">Roommates in {group.name}</p>
+                </div>
+                <button
+                  onClick={() => setShowMembersModal(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-[#13463B] dark:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                {members.map((m) => {
+                  const initials = m.displayName
+                    .split(' ')
+                    .map((n: any) => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2);
+
+                  const colors = ['bg-[#7C5CFC]', 'bg-[#00D2A0]', 'bg-[#FF5C7A]', 'bg-[#FFB347]', 'bg-[#4FC3F7]', 'bg-[#CE93D8]'];
+                  const colorIndex = parseInt(m.id.replace(/\D/g, '') || '0', 10) % colors.length;
+                  const bgClass = colors[isNaN(colorIndex) ? 0 : colorIndex];
+
+                  const isCurrentUser = m.id === currentUser.id;
+                  const isHost = m.id === group.hostId;
+
+                  return (
+                    <div key={m.id} className="flex items-center gap-4 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-sm shrink-0 ${bgClass}`}>
+                        {initials}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[#13463B] dark:text-white truncate text-sm">
+                            {m.displayName}
+                          </span>
+                          {isCurrentUser && (
+                            <span className="px-2 py-0.5 rounded-full bg-[#13463B]/10 dark:bg-white/10 text-[#13463B] dark:text-white font-extrabold text-[9px] uppercase tracking-wide">
+                              You
+                            </span>
+                          )}
+                          {isHost && (
+                            <span className="px-2 py-0.5 rounded-full bg-leaf-green/20 text-[#1B5648] dark:text-leaf-green-dark font-extrabold text-[9px] uppercase tracking-wide">
+                              Host
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[#316D5F] dark:text-slate-400 mt-1 space-y-0.5">
+                          {m.phone && <p>📞 {m.phone}</p>}
+                          {m.email && <p>✉️ {m.email}</p>}
+                          {m.walletAddress ? (
+                            <p className="flex items-center gap-1 font-mono text-[9px] text-[#1B5648] dark:text-[#C8DACF] bg-[#1B5648]/5 dark:bg-white/5 p-1 rounded-md max-w-max">
+                              <Wifi size={10} /> {m.walletAddress.substring(0, 6)}...{m.walletAddress.substring(m.walletAddress.length - 6)}
+                            </p>
+                          ) : (
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 italic">No Stellar Wallet linked</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => {
+                    setShowMembersModal(false);
+                    setShowInviteModal(true);
+                  }}
+                  className="w-full bg-[#13463B] hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 py-3.5 rounded-2xl font-bold transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"
+                >
+                  <Plus size={16} /> Invite More Roommates
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
