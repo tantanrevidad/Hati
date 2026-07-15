@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Handshake, ReceiptText, Calendar, Camera, FileText, Plus, ArrowLeft, ArrowUpRight, ArrowDownRight, Loader2, CheckCircle2, AlertCircle, Wifi, Upload, X, ImageIcon, Copy, Share2 } from 'lucide-react';
+import { Handshake, ReceiptText, Calendar, Camera, FileText, Plus, ArrowLeft, ArrowUpRight, ArrowDownRight, Loader2, CheckCircle2, AlertCircle, Wifi, Upload, X, ImageIcon, Copy, Share2, ChevronDown } from 'lucide-react';
 import { ExpenseItem } from '../types';
 import { api } from '../services/api';
 import QRCode from 'react-qr-code';
@@ -23,7 +23,7 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [successTxHash, setSuccessTxHash] = useState<string | null>(null);
-  const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
+  const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
   const [txDetails, setTxDetails] = useState<any>(null);
   const [txLoading, setTxLoading] = useState(false);
   const [joinUrl, setJoinUrl] = useState('');
@@ -605,31 +605,95 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
                 {backendExpenses.map((expense) => {
                   const payerName = members.find(m => m.id === expense.paidBy)?.displayName || 'Roommate';
                   const isYouPayer = expense.paidBy === currentUser.id;
-                  
+                  const isExpanded = expandedExpenseId === expense.id;
+
+                  // Parse split details for this expense
+                  let shares: Record<string, number> = {};
+                  let participantIds: string[] = [];
+                  if (isExpanded) {
+                    try {
+                      const details = typeof expense.splitDetails === 'string'
+                        ? JSON.parse(expense.splitDetails || '{}')
+                        : (expense.splitDetails || {});
+                        
+                      if (expense.splitType === 'equal') {
+                        participantIds = details.participantIds || [];
+                        const perPerson = expense.amount / (participantIds.length || 1);
+                        participantIds.forEach((id: string) => {
+                          shares[id] = perPerson;
+                        });
+                      } else if (expense.splitType === 'custom') {
+                        shares = details.shares || {};
+                        participantIds = Object.keys(shares);
+                      }
+                    } catch (err) {
+                      console.error('Failed to parse split details:', err);
+                    }
+                  }
+
                   return (
-                    <div 
-                      key={expense.id} 
-                      onClick={() => setSelectedExpense(expense)}
-                      className="flex items-center justify-between border-b border-[#C8DACF] dark:border-slate-800 pb-3 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2 -mx-2 rounded-xl transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                          isYouPayer ? 'bg-leaf-green/20 text-leaf-green-dark' : 'bg-leaf-yellow/20 text-leaf-yellow-dark'
-                        }`}>
-                          {isYouPayer ? <ArrowDownRight size={18} /> : <ReceiptText size={18} />}
+                    <div key={expense.id} className="border-b border-[#C8DACF] dark:border-slate-800 pb-3 last:border-0 last:pb-0">
+                      {/* Clickable Header Row */}
+                      <div 
+                        onClick={() => setExpandedExpenseId(isExpanded ? null : expense.id)}
+                        className="flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2 -mx-2 rounded-xl transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            isYouPayer ? 'bg-leaf-green/20 text-leaf-green-dark' : 'bg-leaf-yellow/20 text-leaf-yellow-dark'
+                          }`}>
+                            {isYouPayer ? <ArrowDownRight size={18} /> : <ReceiptText size={18} />}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-[#13463B] dark:text-white leading-tight text-sm">{expense.description}</h4>
+                            <p className="text-[10px] sm:text-xs font-medium mt-0.5 text-[#316D5F] dark:text-slate-400">
+                              Paid by {isYouPayer ? 'You' : payerName} • {new Date(expense.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-bold text-[#13463B] dark:text-white leading-tight text-sm">{expense.description}</h4>
-                          <p className="text-[10px] sm:text-xs font-medium mt-0.5 text-[#316D5F] dark:text-slate-400">
-                            Paid by {isYouPayer ? 'You' : payerName} • {new Date(expense.createdAt).toLocaleDateString()}
-                          </p>
+                        <div className="flex items-center gap-2 text-right">
+                          <span className="block font-black text-sm sm:text-base text-[#1B5648] dark:text-slate-200">
+                            ₱{(expense.amount / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                          </span>
+                          <span className={`text-slate-400 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                            <ChevronDown size={16} />
+                          </span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="block font-black text-sm sm:text-base text-[#1B5648] dark:text-slate-200">
-                          ₱{(expense.amount / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                        </span>
-                      </div>
+
+                      {/* Dropdown Content */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
+                            className="overflow-hidden mt-2 px-2 pl-12 space-y-2 border-l-2 border-slate-100 dark:border-slate-800"
+                          >
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Split Breakdown</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-1">
+                              {participantIds.map(userId => {
+                                const member = members.find(m => m.id === userId) || (userId === currentUser.id ? currentUser : null);
+                                const name = userId === currentUser.id ? 'You' : (member?.displayName || 'Roommate');
+                                const shareAmount = shares[userId] || 0;
+                                const isPayer = userId === expense.paidBy;
+
+                                return (
+                                  <div key={userId} className="flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20 px-3 py-2 rounded-lg text-xs font-medium">
+                                    <span className="text-[#316D5F] dark:text-slate-300">
+                                      {name} {isPayer && <span className="text-[9px] font-bold text-leaf-green-dark bg-leaf-green/20 px-1.5 rounded ml-1">Paid</span>}
+                                    </span>
+                                    <span className="font-bold text-[#13463B] dark:text-white">
+                                      ₱{(shareAmount / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 })}
@@ -918,146 +982,7 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
         )}
       </AnimatePresence>
 
-      {/* Expense Breakdown Modal */}
-      <AnimatePresence>
-        {selectedExpense && (() => {
-          const payer = members.find(m => m.id === selectedExpense.paidBy) || (selectedExpense.paidBy === currentUser.id ? currentUser : null);
-          const payerName = payer?.displayName || 'Roommate';
-          const isYouPayer = selectedExpense.paidBy === currentUser.id;
-          
-          let shares: Record<string, number> = {};
-          let participantIds: string[] = [];
-          
-          try {
-            const details = JSON.parse(selectedExpense.splitDetails || '{}');
-            if (selectedExpense.splitType === 'equal') {
-              participantIds = details.participantIds || [];
-              const perPerson = selectedExpense.amount / (participantIds.length || 1);
-              participantIds.forEach(id => {
-                shares[id] = perPerson;
-              });
-            } else if (selectedExpense.splitType === 'custom') {
-              shares = details.shares || {};
-              participantIds = Object.keys(shares);
-            }
-          } catch (err) {
-            console.error('Failed to parse split details:', err);
-          }
 
-          return (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-[#13463B]/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
-              onClick={() => setSelectedExpense(null)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.9, y: 20 }}
-                className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 shadow-2xl flex flex-col max-h-[85vh]"
-                onClick={e => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-leaf-green/20 text-leaf-green-dark rounded-xl flex items-center justify-center">
-                      <ReceiptText size={20} className="text-leaf-green-dark" />
-                    </div>
-                    <div className="text-left">
-                      <h3 className="font-black text-base text-[#13463B] dark:text-white leading-tight">Expense Details</h3>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        {selectedExpense.category || 'General'}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelectedExpense(null)}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                {/* Body */}
-                <div className="flex-1 overflow-y-auto py-4 space-y-5 text-left pr-1 scrollbar-thin">
-                  {/* Summary Card */}
-                  <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl p-4">
-                    <h4 className="font-bold text-[#13463B] dark:text-white text-sm mb-1">{selectedExpense.description}</h4>
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mb-4">
-                      <Calendar size={12} />
-                      <span>{new Date(selectedExpense.createdAt).toLocaleDateString()}</span>
-                      <span>•</span>
-                      <span className="capitalize">{selectedExpense.source?.replace('_', ' ') || 'Manual'}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-end border-t border-slate-200/60 dark:border-slate-800/60 pt-3">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Paid By</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[#13463B] text-white flex items-center justify-center text-[10px] font-bold uppercase">
-                            {payerName.charAt(0)}
-                          </div>
-                          <span className="text-xs font-bold text-[#13463B] dark:text-white">
-                            {isYouPayer ? 'You' : payerName}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">Total Amount</span>
-                        <span className="font-black text-lg text-[#1B5648] dark:text-slate-200">
-                          ₱{(selectedExpense.amount / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Splits List */}
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-1">Split Details</span>
-                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                      {participantIds.map(userId => {
-                        const member = members.find(m => m.id === userId) || (userId === currentUser.id ? currentUser : null);
-                        const name = userId === currentUser.id ? 'You' : (member?.displayName || 'Roommate');
-                        const shareAmount = shares[userId] || 0;
-                        const isPayer = userId === selectedExpense.paidBy;
-
-                        return (
-                          <div key={userId} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/20 rounded-xl border border-slate-100/50 dark:border-slate-800/50">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-[#13463B] dark:text-white flex items-center justify-center text-xs font-bold">
-                                {name.charAt(0)}
-                              </div>
-                              <div>
-                                <span className="text-xs font-bold text-[#13463B] dark:text-white block leading-tight">{name}</span>
-                                <span className="text-[10px] text-slate-400 font-medium">
-                                  {isPayer ? 'Paid & Owed' : 'Owes'}
-                                </span>
-                              </div>
-                            </div>
-                            <span className="font-bold text-xs text-[#13463B] dark:text-slate-200">
-                              ₱{(shareAmount / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Close Action Button */}
-                <button
-                  onClick={() => setSelectedExpense(null)}
-                  className="w-full mt-2 bg-[#13463B] hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 py-3.5 rounded-2xl font-bold transition-colors shadow-sm"
-                >
-                  Close
-                </button>
-              </motion.div>
-            </motion.div>
-          );
-        })()}
-      </AnimatePresence>
 
       {/* Transaction Success Modal */}
       <AnimatePresence>
