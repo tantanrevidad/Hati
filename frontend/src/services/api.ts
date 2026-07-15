@@ -85,7 +85,7 @@ export const api = {
   },
 
   // Expenses & Ledgers
-  async createExpense(groupId: string, expense: { description: string; amount: number; category: string; paidBy: string; splitType?: string; participantIds?: string[] }) {
+  async createExpense(groupId: string, expense: { description: string; amount: number; category: string; paidBy: string; splitType?: string; participantIds?: string[]; splitDetails?: any }) {
     const payload = {
       description: expense.description,
       amount: Math.round(expense.amount * 100), // convert to smallest unit centavos
@@ -93,7 +93,7 @@ export const api = {
       category: expense.category.toLowerCase(),
       paidBy: expense.paidBy,
       splitType: expense.splitType || 'equal',
-      splitDetails: expense.participantIds ? { participantIds: expense.participantIds } : undefined
+      splitDetails: expense.splitDetails || (expense.participantIds ? { participantIds: expense.participantIds } : undefined)
     };
     return request('POST', `/groups/${groupId}/expenses`, payload);
   },
