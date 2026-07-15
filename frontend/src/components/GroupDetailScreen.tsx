@@ -22,6 +22,7 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qrph' | 'cash'>('qrph');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
+  const [successTxHash, setSuccessTxHash] = useState<string | null>(null);
   const [joinUrl, setJoinUrl] = useState('');
   const [showShareToast, setShowShareToast] = useState(false);
 
@@ -246,14 +247,18 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
   const handleSettleDebt = async (debt: any) => {
     try {
       const backendMethod = selectedPaymentMethod === 'qrph' ? 'stellar' : selectedPaymentMethod;
-      await api.settleDebt(
+      const res = await api.settleDebt(
         group.id,
         currentUser.id,
         debt.amount,
         backendMethod,
         [debt.userId]
       );
-      alert('Settlement initiated successfully!');
+      if (res && res.stellarTxHash) {
+        setSuccessTxHash(res.stellarTxHash);
+      } else {
+        alert('Settlement initiated successfully!');
+      }
       await loadData();
       setShowSettle(false);
       setSelectedOweUser(null);
@@ -861,6 +866,58 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
                 className="w-full bg-slate-100 hover:bg-[#FCECEE] dark:bg-slate-800 dark:hover:bg-slate-700 text-[#13463B] dark:text-white py-4 rounded-2xl font-bold transition-colors"
               >
                 {selectedOweUser ? 'Go Back' : 'Close'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Transaction Success Modal */}
+      <AnimatePresence>
+        {successTxHash && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[#13463B]/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={() => setSuccessTxHash(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl text-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 bg-leaf-green/20 text-leaf-green-dark rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 size={36} className="text-leaf-green-dark" />
+              </div>
+              <h3 className="text-xl font-black text-[#13463B] dark:text-white mb-2">Payment Confirmed!</h3>
+              <p className="text-[#316D5F] dark:text-slate-400 text-xs leading-relaxed mb-6">
+                Your payment has been successfully submitted and verified on the Stellar Testnet blockchain using Circle USDC.
+              </p>
+              
+              <div className="space-y-2 mb-6">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Stellar Transaction Verification</span>
+                {successTxHash.split(',').map((hash, idx) => (
+                  <a
+                    key={idx}
+                    href={`https://stellar.expert/explorer/testnet/tx/${hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 rounded-xl text-xs font-bold text-[#13463B] dark:text-white border border-slate-100 dark:border-slate-800 transition"
+                  >
+                    <Wifi size={14} className="text-leaf-green-dark" />
+                    <span>View Tx {idx + 1} on Stellar.expert</span>
+                  </a>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setSuccessTxHash(null)}
+                className="w-full bg-[#13463B] hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 py-3.5 rounded-2xl font-bold transition-colors shadow-sm"
+              >
+                Close
               </button>
             </motion.div>
           </motion.div>
