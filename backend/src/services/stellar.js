@@ -1,17 +1,31 @@
-const StellarSdk = require('@stellar/stellar-sdk');
 const db = require('../db/database');
 
-const server = new StellarSdk.Horizon.Server(
-  process.env.HORIZON_URL || 'https://horizon-testnet.stellar.org'
-);
-const networkPassphrase = StellarSdk.Networks.TESTNET;
+// Lazily import the Stellar SDK only when actually needed.
+// This avoids the ERR_REQUIRE_ESM crash at module load time on Vercel,
+// because @stellar/stellar-sdk v16 uses @noble/hashes v2 which is ESM-only.
+let _sdk = null;
+async function getSdk() {
+  if (!_sdk) {
+    _sdk = await import('@stellar/stellar-sdk');
+  }
+  return _sdk;
+}
 
-const USDC_ASSET = new StellarSdk.Asset(
-  'USDC',
-  'GBK52AWQPRBTEDOYROFVBGVI53KQKNT3HRIZYATUQJT6FNIXR4YTK6LO'
-);
+// Helpers that are initialized lazily (after getSdk())
+async function getServer() {
+  const StellarSdk = await getSdk();
+  return new StellarSdk.Horizon.Server(
+    process.env.HORIZON_URL || 'https://horizon-testnet.stellar.org'
+  );
+}
 
-let feeBumperKeypair = null;
+async function getUsdcAsset() {
+  const StellarSdk = await getSdk();
+  return new StellarSdk.Asset(
+    'USDC',
+    'GBK52AWQPRBTEDOYROFVBGVI53KQKNT3HRIZYATUQJT6FNIXR4YTK6LO'
+  );
+}
 
 // Helper to fund accounts via Friendbot
 async function fundAccount(publicKey) {
@@ -41,6 +55,7 @@ async function getFeeBumper() {
   if (feeBumperPromise) return feeBumperPromise;
 
   feeBumperPromise = (async () => {
+    const StellarSdk = await getSdk();
     const secret = process.env.FEE_BUMPER_SECRET;
     if (secret) {
       const keypair = StellarSdk.Keypair.fromSecret(secret);
@@ -63,16 +78,19 @@ async function getFeeBumper() {
  * Submits a fee-bumped changeTrust transaction to establish a USDC trustline for a custodial account.
  */
 async function establishUsdcTrustline(publicKey, secretKey) {
+  const StellarSdk = await getSdk();
+  const server = await getServer();
+  const USDC_ASSET = await getUsdcAsset();
+  const networkPassphrase = StellarSdk.Networks.TESTNET;
+
   const account = await server.loadAccount(publicKey);
 
   const innerTx = new StellarSdk.TransactionBuilder(account, {
     fee: '0',
-    networkPassphrase: networkPassphrase
+    networkPassphrase
   })
     .addOperation(
-      StellarSdk.Operation.changeTrust({
-        asset: USDC_ASSET
-      })
+      StellarSdk.Operation.changeTrust({ asset: USDC_ASSET })
     )
     .setTimeout(180)
     .build();
@@ -90,7 +108,6 @@ async function establishUsdcTrustline(publicKey, secretKey) {
   );
 
   feeBumpTx.sign(feeBumper);
-
   await server.submitTransaction(feeBumpTx);
 }
 
@@ -117,6 +134,11 @@ async function mintUsdc(toPublicKey, amountCentavos) {
  * Raw execution of the issuer payment on Stellar.
  */
 async function executeMintUsdc(toPublicKey, amountCentavos) {
+  const StellarSdk = await getSdk();
+  const server = await getServer();
+  const USDC_ASSET = await getUsdcAsset();
+  const networkPassphrase = StellarSdk.Networks.TESTNET;
+
   const issuerPair = StellarSdk.Keypair.fromSecret('SCWYHTBBU4QBWYGW2WKCOOJAQYMWFLOKRTFOPKPCS4DAKE7HIKOSYDXO');
   const issuerPublicKey = issuerPair.publicKey();
   const amountDecimal = (amountCentavos / 100).toFixed(7);
@@ -124,7 +146,7 @@ async function executeMintUsdc(toPublicKey, amountCentavos) {
   const issuerAccount = await server.loadAccount(issuerPublicKey);
   const tx = new StellarSdk.TransactionBuilder(issuerAccount, {
     fee: StellarSdk.BASE_FEE,
-    networkPassphrase: networkPassphrase
+    networkPassphrase
   })
     .addOperation(
       StellarSdk.Operation.payment({
@@ -145,6 +167,8 @@ async function executeMintUsdc(toPublicKey, amountCentavos) {
  * Generates custodial Stellar keys for a user, registers them, and funds the account.
  */
 async function createCustodialWallet(userId) {
+  const StellarSdk = await getSdk();
+
   const user = await db.get('SELECT walletAddress, walletSecret FROM users WHERE id = ?', [userId]);
   if (user && user.walletAddress) {
     return user.walletAddress; // Already exists
@@ -190,59 +214,55 @@ async function createCustodialWallet(userId) {
  * amount: number in PHP centavos (e.g. 1000 = ₱10.00)
  */
 async function submitStellarPayment(fromSecret, toPublicKey, amountCentavos) {
+  const StellarSdk = await getSdk();
+  const server = await getServer();
+  const USDC_ASSET = await getUsdcAsset();
+  const networkPassphrase = StellarSdk.Networks.TESTNET;
+
   const fromPair = StellarSdk.Keypair.fromSecret(fromSecret);
   const fromPublicKey = fromPair.publicKey();
-
-  // Convert amount centavos to Stellar decimal units (e.g. 1000 centavos -> 10.00 XLM/USDC)
-  // Stellar SDK expects a string representing the decimal amount
   const amountDecimal = (amountCentavos / 100).toFixed(7);
 
-  // Load sender's account to get sequence number
   const sourceAccount = await server.loadAccount(fromPublicKey);
 
-  // Build the inner transaction
-  // Using native XLM for baseline, but can use USDC by providing asset object
   const innerTx = new StellarSdk.TransactionBuilder(sourceAccount, {
-    fee: '0', // Fee is 0 since outer fee-bump will pay it
-    networkPassphrase: networkPassphrase
+    fee: '0',
+    networkPassphrase
   })
     .addOperation(
       StellarSdk.Operation.payment({
         destination: toPublicKey,
-        asset: USDC_ASSET, // USDC stablecoin
+        asset: USDC_ASSET,
         amount: amountDecimal
       })
     )
-    .setTimeout(180) // 3-minute timeout
+    .setTimeout(180)
     .build();
 
-  // Sign inner transaction with the user's custodial key
   innerTx.sign(fromPair);
 
-  // Load fee-bumper keypair details
   const feeBumper = await getFeeBumper();
 
-  // Wrap in a fee-bump transaction
   const feeBumpTx = StellarSdk.TransactionBuilder.buildFeeBumpTransaction(
-    feeBumper.publicKey(), // pass public key string directly
-    (StellarSdk.BASE_FEE * 2).toString(), // pays double base fee
+    feeBumper.publicKey(),
+    (StellarSdk.BASE_FEE * 2).toString(),
     innerTx,
     networkPassphrase
   );
 
-  // Sign outer transaction with the fee-bumper key
   feeBumpTx.sign(feeBumper);
 
-  // Submit to Horizon
   const result = await server.submitTransaction(feeBumpTx);
   return result.hash;
 }
 
 /**
- * Resolves SEP-10 authentication and initiates a real SEP-24 interactive deposit transaction 
+ * Resolves SEP-10 authentication and initiates a real SEP-24 interactive deposit transaction
  * with the official SDF Test Anchor, returning the interactive portal URL.
  */
 async function getInteractiveDepositUrl(userId) {
+  const StellarSdk = await getSdk();
+
   let user = await db.get('SELECT walletAddress, walletSecret FROM users WHERE id = ?', [userId]);
   if (!user || !user.walletAddress || !user.walletSecret) {
     console.log(`Generating custodial wallet for user ${userId} on-the-fly for SEP-24 deposit...`);
