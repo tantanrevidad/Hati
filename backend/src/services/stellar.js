@@ -197,9 +197,9 @@ async function createCustodialWallet(userId) {
     await establishUsdcTrustline(publicKey, secretKey);
     console.log(`USDC trustline established successfully for user ${userId}.`);
 
-    // Fund the user with 1000 USDC test balance so they have enough balance to settle debts
-    console.log(`Minting 1000 USDC test balance for user ${userId} (${publicKey})...`);
-    await mintUsdc(publicKey, 100000); // 100,000 centavos = 1,000.00 USDC
+    // Fund the user with 100,000 USDC test balance so they have enough balance to settle debts
+    console.log(`Minting 100000 USDC test balance for user ${userId} (${publicKey})...`);
+    await mintUsdc(publicKey, 10000000); // 10,000,000 centavos = 100,000.00 USDC
     console.log(`Successfully minted 1000 USDC test balance for user ${userId}.`);
   } catch (err) {
     console.error(`Failed to initialize USDC for user ${userId}:`, err);
@@ -223,7 +223,25 @@ async function submitStellarPayment(fromSecret, toPublicKey, amountCentavos) {
   const fromPublicKey = fromPair.publicKey();
   const amountDecimal = (amountCentavos / 100).toFixed(7);
 
-  const sourceAccount = await server.loadAccount(fromPublicKey);
+  let sourceAccount = await server.loadAccount(fromPublicKey);
+
+  // Auto-top-up sender if their USDC balance is insufficient for this payment
+  try {
+    const usdcBalanceObj = sourceAccount.balances.find(b => 
+      b.asset_code === USDC_ASSET.code && 
+      b.asset_issuer === USDC_ASSET.issuer
+    );
+    const usdcBalance = parseFloat(usdcBalanceObj ? usdcBalanceObj.balance : '0');
+    if (usdcBalance < parseFloat(amountDecimal)) {
+      console.log(`[Stellar] Sender balance (${usdcBalance} USDC) is low. Minting additional test USDC...`);
+      const topUpAmount = Math.max(amountCentavos, 10000000); // Mint at least 100,000.00 USDC
+      await mintUsdc(fromPublicKey, topUpAmount);
+      // Reload account to pick up the updated sequence number/balances
+      sourceAccount = await server.loadAccount(fromPublicKey);
+    }
+  } catch (err) {
+    console.warn('[Stellar] Auto-top-up check failed:', err.message);
+  }
 
   const innerTx = new StellarSdk.TransactionBuilder(sourceAccount, {
     fee: '0',
