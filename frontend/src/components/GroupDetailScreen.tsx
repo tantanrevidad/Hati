@@ -91,15 +91,6 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
       return { totalBalance: 0, youOwe: 0, owedToYou: 0, owedToYouPersons: 0, youOweBills: 0, activeOwes: [] };
     }
 
-    const total = backendExpenses.reduce((sum, e) => sum + e.amount, 0) / 100;
-    const userBalance = ledger.balances[currentUser.id] || 0;
-    const owe = userBalance < 0 ? Math.abs(userBalance) / 100 : 0;
-    const owed = userBalance > 0 ? userBalance / 100 : 0;
-
-    const owedToYouCount = Object.entries(ledger.balances).filter(
-      ([uId, val]) => uId !== currentUser.id && (val as number) < 0
-    ).length;
-
     const activeOweList = ledger.debts
       ? ledger.debts
           .filter((d: any) => d.fromUserId === currentUser.id)
@@ -114,15 +105,33 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
           })
       : [];
 
+    const activeOwedList = ledger.debts
+      ? ledger.debts
+          .filter((d: any) => d.toUserId === currentUser.id)
+          .map((d: any) => {
+            const debtor = members.find(m => m.id === d.fromUserId);
+            return {
+              userId: d.fromUserId,
+              person: debtor?.displayName || 'Roommate',
+              amount: d.amount / 100,
+              title: 'Simplified Balance'
+            };
+          })
+      : [];
+
+    const owe = activeOweList.reduce((sum: number, item: any) => sum + item.amount, 0);
+    const owed = activeOwedList.reduce((sum: number, item: any) => sum + item.amount, 0);
+    const netBalance = owed - owe;
+
     return {
-      totalBalance: total,
+      totalBalance: netBalance,
       youOwe: owe,
       owedToYou: owed,
-      owedToYouPersons: owedToYouCount,
+      owedToYouPersons: activeOwedList.length,
       youOweBills: activeOweList.length,
       activeOwes: activeOweList
     };
-  }, [ledger, backendExpenses, members, currentUser.id]);
+  }, [ledger, members, currentUser.id]);
 
   const CHART_COLORS = ['#A5C09A', '#EFA8B5', '#F5C4A1', '#88B04B', '#92A8D1', '#F7CAC9'];
 
@@ -571,7 +580,7 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
         </div>
 
         {/* Nudge list for debtors */}
-        {owedToYou > 0 && ledger?.debts && (
+        {ledger?.debts?.some((d: any) => d.toUserId === currentUser.id) && (
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-[#C8DACF] dark:border-slate-700">
             <span className="text-[10px] sm:text-xs font-bold uppercase text-[#316D5F] dark:text-slate-400 block mb-3">Owed to you</span>
             <div className="space-y-3">
@@ -600,7 +609,7 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
         )}
 
         {/* Debts I owe list */}
-        {youOwe > 0 && ledger?.debts && (
+        {ledger?.debts?.some((d: any) => d.fromUserId === currentUser.id) && (
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-[#C8DACF] dark:border-slate-700">
             <span className="text-[10px] sm:text-xs font-bold uppercase text-leaf-pink dark:text-leaf-pink-dark block mb-3">You owe</span>
             <div className="space-y-3">
