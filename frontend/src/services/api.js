@@ -1,7 +1,9 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const getToken = () => localStorage.getItem('lista-token') || localStorage.getItem('lista_token');
 
 async function request(method, path, body = null) {
   const token = getToken();
+  const url = `${API_BASE_URL}${path}`;
   const headers = {
     'Content-Type': 'application/json',
   };
@@ -9,7 +11,7 @@ async function request(method, path, body = null) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(path, {
+  const response = await fetch(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : null,
@@ -137,5 +139,17 @@ export const api = {
   getGroupExpenses(groupId) { return this.getExpenses(groupId); },
   getGroupLedger(groupId) { return this.getLedger(groupId); },
   getGroupSettlements(groupId) { return request('GET', `/groups/${groupId}/settlements`); },
-  createSettlement(settlementData) { return request('POST', '/settlements', settlementData); }
+  createSettlement(settlementData) { return request('POST', '/settlements', settlementData); },
+  
+  async getSettlements(groupId) {
+    return request('GET', `/groups/${groupId}/settlements`);
+  },
+
+  async analyzeReceiptText(description, groupMembersCount, userName) {
+    return request('POST', '/api/analyze-receipt', { description, groupMembersCount, userName });
+  },
+
+  async scanReceipt(groupId, imageBase64, mimeType) {
+    return request('POST', `/groups/${groupId}/expenses/scan`, { imageBase64, mimeType });
+  }
 };

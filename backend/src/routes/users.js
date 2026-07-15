@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
 
-router.post('/me/payment-methods', authMiddleware, (req, res) => {
+router.post('/me/payment-methods', authMiddleware, async (req, res) => {
   const { type, referenceToken } = req.body;
   const user = req.user; // populated by authMiddleware
 
@@ -30,11 +30,10 @@ router.post('/me/payment-methods', authMiddleware, (req, res) => {
     }
 
     // Save back to DB
-    const update = db.prepare('UPDATE users SET linkedPaymentMethods = ? WHERE id = ?');
-    update.run(JSON.stringify(paymentMethods), user.id);
+    await db.run('UPDATE users SET linkedPaymentMethods = ? WHERE id = ?', [JSON.stringify(paymentMethods), user.id]);
 
     // Reload user
-    const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+    const updatedUser = await db.get('SELECT * FROM users WHERE id = ?', [user.id]);
     updatedUser.linkedPaymentMethods = paymentMethods;
     
     delete updatedUser.walletSecret;

@@ -3,7 +3,7 @@ const db = require('../db/database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretapachatihackathonkey2026';
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers['authorization'];
   if (!authHeader) {
     return res.status(401).json({ error: 'No token provided' });
@@ -18,7 +18,7 @@ function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
     
     // Fetch user from DB
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id);
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [decoded.id]);
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }

@@ -6,9 +6,9 @@ const db = require('../db/database');
  * Positive balance: User is owed money.
  * Negative balance: User owes money.
  */
-function calculateLedger(groupId) {
+async function calculateLedger(groupId) {
   // 1. Fetch group members
-  const members = db.prepare('SELECT userId FROM group_members WHERE groupId = ?').all(groupId);
+  const members = await db.all('SELECT userId FROM group_members WHERE groupId = ?', [groupId]);
   if (members.length === 0) {
     throw new Error('Group not found or has no members');
   }
@@ -19,7 +19,7 @@ function calculateLedger(groupId) {
   });
 
   // 2. Fetch all expenses for the group
-  const expenses = db.prepare('SELECT * FROM expenses WHERE groupId = ?').all(groupId);
+  const expenses = await db.all('SELECT * FROM expenses WHERE groupId = ?', [groupId]);
   
   expenses.forEach(exp => {
     const amount = exp.amount;
@@ -90,12 +90,12 @@ function calculateLedger(groupId) {
   });
 
   // 3. Fetch all confirmed settlements
-  const settlements = db.prepare(`
+  const settlements = await db.all(`
     SELECT s.id, s.fromUserId, c.toUserId, c.amount 
     FROM settlements s
     JOIN confirmations c ON s.id = c.settlementId
     WHERE s.groupId = ? AND s.status = 'confirmed'
-  `).all(groupId);
+  `, [groupId]);
 
   settlements.forEach(settle => {
     const fromUser = settle.fromUserId;

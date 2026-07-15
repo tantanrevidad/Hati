@@ -54,9 +54,7 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
       ]);
       
       // Load settlements
-      const sList = await fetch(`/groups/${group.id}/settlements`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('lista-token')}` }
-      }).then(res => res.json()).catch(() => []);
+      const sList = await api.getSettlements(group.id).catch(() => []);
 
       setMembers(mList);
       setBackendExpenses(eList);
@@ -157,20 +155,12 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
   const handleAddLista = async () => {
     if (!listaDescription.trim()) return;
     setIsAnalyzing(true);
-    
     try {
-      const response = await fetch('/api/analyze-receipt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          description: listaDescription,
-          groupMembersCount: members.length || group.members,
-          userName: userName || 'User'
-        })
-      });
-      
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to analyze');
+      const data = await api.analyzeReceiptText(
+        listaDescription,
+        members.length || group.members,
+        userName || 'User'
+      );
       
       // Save expenses to backend sequentially
       for (const expenseData of data.expenses) {
@@ -282,20 +272,11 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
 
     try {
       // Send to backend scan endpoint
-      const scanRes = await fetch(`/groups/${group.id}/expenses/scan`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('lista-token')}`
-        },
-        body: JSON.stringify({
-          imageBase64: capturedImage.base64,
-          mimeType: capturedImage.mimeType
-        })
-      });
-
-      const scanData = await scanRes.json();
-      if (!scanRes.ok) throw new Error(scanData.error || 'Failed to scan receipt');
+      const scanData = await api.scanReceipt(
+        group.id,
+        capturedImage.base64,
+        capturedImage.mimeType
+      );
 
       // Create the expense from the scanned data
       const paidBy = currentUser.id;

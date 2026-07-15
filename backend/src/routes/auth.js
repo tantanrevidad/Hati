@@ -6,7 +6,7 @@ const db = require('../db/database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretapachatihackathonkey2026';
 
-router.post('/check-user', (req, res) => {
+router.post('/check-user', async (req, res) => {
   const { method, credential } = req.body;
 
   if (!method || !credential) {
@@ -16,9 +16,9 @@ router.post('/check-user', (req, res) => {
   try {
     let user;
     if (method === 'phone') {
-      user = db.prepare('SELECT * FROM users WHERE phone = ?').get(credential);
+      user = await db.get('SELECT * FROM users WHERE phone = ?', [credential]);
     } else {
-      user = db.prepare('SELECT * FROM users WHERE email = ?').get(credential);
+      user = await db.get('SELECT * FROM users WHERE email = ?', [credential]);
     }
     return res.json({ exists: !!user });
   } catch (err) {
@@ -27,7 +27,7 @@ router.post('/check-user', (req, res) => {
   }
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { method, credential, displayName, photoUrl } = req.body;
 
   if (!method || !credential) {
@@ -44,23 +44,21 @@ router.post('/login', (req, res) => {
 
   try {
     if (method === 'phone') {
-      user = db.prepare('SELECT * FROM users WHERE phone = ?').get(credential);
+      user = await db.get('SELECT * FROM users WHERE phone = ?', [credential]);
     } else {
-      user = db.prepare('SELECT * FROM users WHERE email = ?').get(credential);
+      user = await db.get('SELECT * FROM users WHERE email = ?', [credential]);
     }
 
     if (!user) {
       // Create user lazily
       const userId = uuidv4();
-      const insert = db.prepare(`
-        INSERT INTO users (id, displayName, photoUrl, phone, email, authMethod, linkedPaymentMethods, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
       const phoneVal = method === 'phone' ? credential : null;
       const emailVal = method !== 'phone' ? credential : null;
 
-      insert.run(
+      await db.run(`
+        INSERT INTO users (id, displayName, photoUrl, phone, email, authMethod, linkedPaymentMethods, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
         userId,
         displayName || `User_${credential.slice(-4)}`,
         photoUrl || null,
@@ -69,9 +67,9 @@ router.post('/login', (req, res) => {
         method,
         JSON.stringify([]),
         now
-      );
+      ]);
 
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+      user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
     }
 
     // Sign JWT
