@@ -19,7 +19,7 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
   const [showSettle, setShowSettle] = useState(false);
   const [listaDescription, setListaDescription] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qrph' | 'cash' | 'stellar'>('qrph');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qrph' | 'cash'>('qrph');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [joinUrl, setJoinUrl] = useState('');
   const [showShareToast, setShowShareToast] = useState(false);
@@ -244,11 +244,12 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
 
   const handleSettleDebt = async (debt: any) => {
     try {
+      const backendMethod = selectedPaymentMethod === 'qrph' ? 'stellar' : selectedPaymentMethod;
       await api.settleDebt(
         group.id,
         currentUser.id,
         debt.amount,
-        selectedPaymentMethod,
+        backendMethod,
         [debt.userId]
       );
       alert('Settlement initiated successfully!');
@@ -782,7 +783,7 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
                 <div className="mb-6 space-y-4">
                   {/* Payment Method Selector */}
                   <div className="flex gap-2 p-1 bg-[#F3EFE7] dark:bg-slate-800 rounded-xl">
-                    {(['qrph', 'cash', 'stellar'] as const).map((method) => (
+                    {(['qrph', 'cash'] as const).map((method) => (
                       <button
                         key={method}
                         onClick={() => {
@@ -795,41 +796,39 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
                         }}
                         className={`flex-1 py-2 text-xs font-bold rounded-lg uppercase tracking-wider transition ${selectedPaymentMethod === method ? 'bg-[#13463B] text-white' : 'text-[#316D5F] dark:text-slate-400'}`}
                       >
-                        {method === 'stellar' ? 'Stellar' : method}
+                        {method}
                       </button>
                     ))}
                   </div>
 
                   {/* QRPH Render */}
                   {selectedPaymentMethod === 'qrph' && (
-                    <div className="flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50">
-                      {qrLoading ? (
-                        <div className="h-28 flex items-center justify-center">
-                          <Loader2 className="animate-spin text-slate-400" size={24} />
-                        </div>
-                      ) : qrError ? (
-                        <div className="text-center p-3 text-red-500 font-bold text-xs">
-                          <AlertCircle className="mx-auto mb-1" size={16} />
-                          {qrError}
-                        </div>
-                      ) : qrCodeUrl ? (
-                        <>
-                          <div className="bg-white p-3 rounded-xl shadow-sm mb-3">
-                            <img src={qrCodeUrl} alt="QR PH" className="w-28 h-28 object-contain" />
+                    <div className="space-y-4">
+                      <div className="flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                        {qrLoading ? (
+                          <div className="h-28 flex items-center justify-center">
+                            <Loader2 className="animate-spin text-slate-400" size={24} />
                           </div>
-                          <span className="font-bold text-[#13463B] dark:text-white text-xs tracking-wide">Scan with GCash/Maya to Pay</span>
-                        </>
-                      ) : null}
-                    </div>
-                  )}
-
-                  {/* Stellar USD stablecoin information */}
-                  {selectedPaymentMethod === 'stellar' && (
-                    <div className="bg-leaf-green/10 p-4 rounded-2xl border border-leaf-green/30 text-[#13463B] dark:text-white text-xs space-y-2">
-                      <div className="flex items-center gap-2 font-bold text-leaf-green-dark dark:text-leaf-green">
-                        <Wifi size={14} /> Sponsor Fee-Bumping Enabled
+                        ) : qrError ? (
+                          <div className="text-center p-3 text-red-500 font-bold text-xs">
+                            <AlertCircle className="mx-auto mb-1" size={16} />
+                            {qrError}
+                          </div>
+                        ) : qrCodeUrl ? (
+                          <>
+                            <div className="bg-white p-3 rounded-xl shadow-sm mb-3">
+                              <img src={qrCodeUrl} alt="QR PH" className="w-28 h-28 object-contain" />
+                            </div>
+                            <span className="font-bold text-[#13463B] dark:text-white text-xs tracking-wide">Scan with GCash/Maya to Pay</span>
+                          </>
+                        ) : null}
                       </div>
-                      <p className="opacity-90 leading-relaxed">Payments submitted on the Stellar network utilize circle-issued USDC stablecoins. Transaction network fees are fully sponsored and zero-cost to you.</p>
+                      <div className="bg-leaf-green/10 p-4 rounded-2xl border border-leaf-green/30 text-[#13463B] dark:text-white text-xs space-y-2">
+                        <div className="flex items-center gap-2 font-bold text-leaf-green-dark dark:text-leaf-green">
+                          <Wifi size={14} /> Sponsor Fee-Bumping Enabled
+                        </div>
+                        <p className="opacity-90 leading-relaxed">Payments submitted on the Stellar network utilize circle-issued USDC stablecoins. Transaction network fees are fully sponsored and zero-cost to you.</p>
+                      </div>
                     </div>
                   )}
 
