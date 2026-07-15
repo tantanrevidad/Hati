@@ -18,19 +18,57 @@ function convertSql(sql) {
   return sql.replace(/\?/g, () => `$${index++}`);
 }
 
+// Maps lowercase PostgreSQL columns back to camelCase columns expected by the application code
+const camelMap = {
+  displayname: 'displayName',
+  photourl: 'photoUrl',
+  authmethod: 'authMethod',
+  linkedpaymentmethods: 'linkedPaymentMethods',
+  walletaddress: 'walletAddress',
+  walletsecret: 'walletSecret',
+  createdat: 'createdAt',
+  hostid: 'hostId',
+  joinslug: 'joinSlug',
+  zerobalancesince: 'zeroBalanceSince',
+  groupid: 'groupId',
+  userid: 'userId',
+  joinedat: 'joinedAt',
+  paidby: 'paidBy',
+  splittype: 'splitType',
+  splitdetails: 'splitDetails',
+  syncstatus: 'syncStatus',
+  fromuserid: 'fromUserId',
+  stellartxhash: 'stellarTxHash',
+  initiatedat: 'initiatedAt',
+  settlementid: 'settlementId',
+  touserid: 'toUserId',
+  confirmedat: 'confirmedAt',
+  sentat: 'sentAt'
+};
+
+function normalizeRow(row) {
+  if (!row) return row;
+  const newRow = {};
+  for (const key of Object.keys(row)) {
+    const camelKey = camelMap[key] || key;
+    newRow[camelKey] = row[key];
+  }
+  return newRow;
+}
+
 const db = {
   // Execute a query and return all rows
   async all(sql, params = []) {
     const pgSql = convertSql(sql);
     const result = await pool.query(pgSql, params);
-    return result.rows;
+    return result.rows.map(normalizeRow);
   },
 
   // Execute a query and return the first row (or undefined)
   async get(sql, params = []) {
     const pgSql = convertSql(sql);
     const result = await pool.query(pgSql, params);
-    return result.rows[0];
+    return normalizeRow(result.rows[0]);
   },
 
   // Execute a query (insert/update/delete)
