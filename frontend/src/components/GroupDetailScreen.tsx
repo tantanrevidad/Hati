@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Handshake, ReceiptText, Camera, FileText, Plus, ArrowLeft, ArrowUpRight, ArrowDownRight, Loader2, CheckCircle2, AlertCircle, Wifi, Upload, X, ImageIcon } from 'lucide-react';
+import { Handshake, ReceiptText, Camera, FileText, Plus, ArrowLeft, ArrowUpRight, ArrowDownRight, Loader2, CheckCircle2, AlertCircle, Wifi, Upload, X, ImageIcon, Copy, Share2 } from 'lucide-react';
 import { ExpenseItem } from '../types';
 import { api } from '../services/api';
+import QRCode from 'react-qr-code';
 
 interface GroupDetailScreenProps {
   group: { id: string; name: string; members: number; color?: string };
@@ -19,6 +20,9 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
   const [listaDescription, setListaDescription] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'qrph' | 'cash' | 'stellar'>('qrph');
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [joinUrl, setJoinUrl] = useState('');
+  const [showShareToast, setShowShareToast] = useState(false);
 
   // Receipt Scanner States
   const [capturedImage, setCapturedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
@@ -60,6 +64,16 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
       setBackendExpenses(eList);
       setLedger(lData);
       setSettlements(sList);
+
+      // Load join link
+      try {
+        const linkData = await api.getJoinLink(group.id);
+        const localJoinUrl = `${window.location.origin}/join/${linkData.slug}`;
+        setJoinUrl(localJoinUrl);
+      } catch (linkErr) {
+        console.error('Failed to load join link:', linkErr);
+        setJoinUrl(`${window.location.origin}/join/${group.id}`);
+      }
     } catch (err) {
       console.error('Failed to load group details from backend:', err);
     } finally {
@@ -345,16 +359,57 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
       exit={{ opacity: 0, y: 20 }}
       className="fixed inset-0 bg-[#F3EFE7] dark:bg-[#121212] z-40 overflow-y-auto pb-24 flex flex-col items-center px-4 pt-6"
     >
-      <div className="w-full max-w-2xl flex items-center mb-6">
-        <button 
-          onClick={onBack}
-          className="w-10 h-10 rounded-full bg-[#FCECEE] dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 flex items-center justify-center text-[#1B5648] dark:text-slate-300 transition-colors"
-        >
-          <ArrowLeft size={20} />
-        </button>
+      <div className="w-full max-w-2xl flex items-center justify-between mb-8 pb-4 border-b border-[#C8DACF] dark:border-slate-800">
+        <div className="flex items-center gap-3 min-w-0">
+          <button 
+            onClick={onBack}
+            className="w-10 h-10 rounded-full bg-[#FCECEE] dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 flex items-center justify-center text-[#1B5648] dark:text-slate-300 transition-colors flex-shrink-0"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-xl sm:text-2xl font-black text-[#13463B] dark:text-white uppercase tracking-wider truncate" title={group.name}>
+            {group.name}
+          </h1>
+        </div>
+
+        {/* Profiles Stack & Plus Button */}
+        <div className="flex items-center -space-x-1.5 flex-shrink-0 ml-4">
+          {members.slice(0, 3).map((m) => {
+            const initials = m.displayName
+              .split(' ')
+              .map((n: any) => n[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2);
+            
+            const colors = ['bg-[#7C5CFC]', 'bg-[#00D2A0]', 'bg-[#FF5C7A]', 'bg-[#FFB347]', 'bg-[#4FC3F7]', 'bg-[#CE93D8]'];
+            const colorIndex = parseInt(m.id.replace(/\D/g, '') || '0', 10) % colors.length;
+            const bgClass = colors[isNaN(colorIndex) ? 0 : colorIndex];
+
+            return (
+              <div 
+                key={m.id}
+                className={`w-8 h-8 rounded-full border-2 border-[#F3EFE7] dark:border-[#121212] flex items-center justify-center text-[10px] font-bold text-white shadow-sm ${bgClass}`}
+                title={m.displayName}
+              >
+                {initials}
+              </div>
+            );
+          })}
+          {members.length > 3 && (
+            <div className="w-8 h-8 rounded-full border-2 border-[#F3EFE7] dark:border-[#121212] bg-[#C8DACF] dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-[#13463B] dark:text-white shadow-sm">
+              +{members.length - 3}
+            </div>
+          )}
+          <button 
+            onClick={() => setShowInviteModal(true)}
+            className="w-8 h-8 rounded-full border-2 border-dashed border-[#13463B] dark:border-slate-500 bg-transparent flex items-center justify-center text-[#13463B] dark:text-slate-350 ml-2 cursor-pointer hover:bg-[#E5F0E9] dark:hover:bg-slate-800 transition-colors shadow-sm"
+            title="Invite Roommates"
+          >
+            <Plus size={16} className="stroke-[3]" />
+          </button>
+        </div>
       </div>
-      
-      <h1 className="text-4xl sm:text-5xl font-black text-center text-[#13463B] dark:text-white uppercase tracking-wider mb-8 w-full max-w-2xl truncate px-2">{group.name}</h1>
 
       <div className="w-full max-w-2xl space-y-4 mb-6">
         {/* Pending Cash Confirmations Banner */}
@@ -883,6 +938,110 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showInviteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[#13463B]/60 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={() => setShowInviteModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-black text-[#13463B] dark:text-white">Invite Friends</h3>
+                <button
+                  onClick={() => setShowInviteModal(false)}
+                  className="w-8 h-8 rounded-full bg-[#E5F0E9] dark:bg-slate-800 flex items-center justify-center text-[#316D5F] dark:text-slate-400 hover:bg-leaf-pink/20 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p className="text-[#316D5F] dark:text-slate-400 text-sm font-medium mb-6">
+                Have them scan this QR code or share the link below to join "{group.name}".
+              </p>
+
+              {/* QR Code Container */}
+              <div className="flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 mb-6">
+                <div className="bg-white p-3 rounded-xl shadow-sm mb-3">
+                  <QRCode
+                    value={joinUrl}
+                    size={140}
+                    fgColor="#0f172a"
+                    bgColor="#ffffff"
+                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                  />
+                </div>
+              </div>
+
+              {/* Link display & copy button */}
+              <div className="flex gap-2 mb-6">
+                <div className="flex-1 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-850 rounded-xl px-4 py-3 text-sm text-[#1B5648] dark:text-slate-350 font-bold truncate text-left">
+                  {joinUrl}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(joinUrl);
+                    setShowShareToast(true);
+                    setTimeout(() => setShowShareToast(false), 2000);
+                  }}
+                  className="bg-slate-100 hover:bg-[#FCECEE] dark:bg-slate-800 dark:hover:bg-slate-750 text-[#1B5648] dark:text-slate-300 px-4 rounded-xl transition-colors flex items-center justify-center border-2 border-slate-200 dark:border-slate-700 shadow-sm active:scale-95"
+                  title="Copy Link"
+                >
+                  <Copy size={18} className="stroke-[2.5]" />
+                </button>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-3">
+                <button
+                  className="w-full bg-[#13463B] hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
+                  onClick={async () => {
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({
+                          title: `Join ${group.name} on Lista`,
+                          text: `Hey! Use this link to join our Listahan "${group.name}" on Lista:`,
+                          url: joinUrl,
+                        });
+                      } catch (err) {
+                        console.log(err);
+                      }
+                    } else {
+                      navigator.clipboard.writeText(joinUrl);
+                      setShowShareToast(true);
+                      setTimeout(() => setShowShareToast(false), 2000);
+                    }
+                  }}
+                >
+                  <Share2 size={18} className="stroke-[2.5]" /> Share Link
+                </button>
+                <button 
+                  className="w-full bg-slate-100 hover:bg-[#FCECEE] dark:bg-slate-800 dark:hover:bg-slate-700 text-[#13463B] dark:text-white py-3 rounded-xl font-bold transition-colors"
+                  onClick={() => setShowInviteModal(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Share Toast */}
+      {showShareToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#13463B] dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-full font-bold shadow-lg text-sm z-50 animate-bounce">
+          🔗 Invite Link Copied!
+        </div>
+      )}
     </motion.div>
   );
 }
