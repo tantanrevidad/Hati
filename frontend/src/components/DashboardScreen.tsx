@@ -86,7 +86,7 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
           <h1 className="text-2xl tracking-tight text-[#13463B] dark:text-white flex items-center" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900 }}>
             L<span className="relative inline-flex items-center justify-center">ı<span className="absolute top-[0.1em] left-1/2 -translate-x-1/2 w-[0.25em] h-[0.25em] bg-[#10C86E] rounded-full"></span></span>STA
           </h1>
-          <p className="text-sm text-[#316D5F] dark:text-slate-400 font-medium">Welcome back{userName ? ', ' + userName.split(' ')[0] : ''}</p>
+          <p className="text-sm text-[#316D5F] dark:text-slate-400 font-medium">Welcome{userName ? ', ' + userName.split(' ')[0] : ''}</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
