@@ -11,10 +11,20 @@ router.get('/groups', authMiddleware, (req, res) => {
   const userId = req.user.id;
 
   try {
+    // Lazy archive groups at zero balance for more than 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    db.prepare(`
+      UPDATE groups 
+      SET status = 'archived' 
+      WHERE zeroBalanceSince IS NOT NULL 
+        AND zeroBalanceSince < ? 
+        AND status = 'active'
+    `).run(sevenDaysAgo);
+
     const groups = db.prepare(`
       SELECT g.* FROM groups g
       JOIN group_members gm ON g.id = gm.groupId
-      WHERE gm.userId = ?
+      WHERE gm.userId = ? AND g.status = 'active'
     `).all(userId);
 
     // Add memberIds to each group object
@@ -408,7 +418,7 @@ router.get('/groups/:id/expenses', authMiddleware, (req, res) => {
       return res.status(403).json({ error: 'Access denied: Not a group member' });
     }
 
-    const expenses = db.prepare('SELECT * FROM expenses WHERE groupId = ?').all(groupId);
+    const expenses = db.prepare('SELECT * FROM expenses WHERE groupId = ? ORDER BY createdAt DESC').all(groupId);
     expenses.forEach(e => {
       e.mentions = JSON.parse(e.mentions || '[]');
       e.splitDetails = JSON.parse(e.splitDetails || '{}');

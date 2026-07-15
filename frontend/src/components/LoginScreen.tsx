@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, AlertCircle } from 'lucide-react';
+import { api } from '../services/api';
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (user: any) => void;
+  onNext?: (email: string) => void;
 }
 
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+export default function LoginScreen({ onLogin, onNext }: LoginScreenProps) {
   const [showForm, setShowForm] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -20,7 +23,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
@@ -34,9 +37,46 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       return;
     }
 
-    if (email && password) {
-      localStorage.setItem('userEmail', email);
-      onLogin();
+    setLoading(true);
+
+    try {
+      const check = await api.checkUser('email', email);
+
+      if (isSignUp) {
+        // Sign Up Mode: Check if user already exists
+        if (check.exists) {
+          setError('An account with this email already exists.');
+          setLoading(false);
+          return;
+        }
+
+        // Proceed to onboarding/profile setup
+        localStorage.setItem('userEmail', email);
+        if (onNext) {
+          onNext(email);
+        }
+      } else {
+        // Sign In Mode: Check if user exists
+        if (!check.exists) {
+          setError('No account found with this email. We have switched you to "Create Account" so you can sign up.');
+          setIsSignUp(true);
+          setLoading(false);
+          return;
+        }
+
+        // If exists, log in and redirect to dashboard immediately
+        const loginRes = await api.login('email', email);
+        if (loginRes.token && loginRes.user) {
+          onLogin(loginRes.user);
+        } else {
+          setError('Login failed. Please try again.');
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'An error occurred during authentication.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,27 +96,28 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           initial={{ scale: 1.6 }}
           animate={{ scale: showForm ? 1.0 : 1.6 }}
           transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-          className="relative flex flex-col items-center justify-center p-4 mb-4 w-full max-w-sm border-x border-transparent"
+          className="relative flex flex-col items-center justify-center p-4 mb-4 w-full max-w-2xl border-x border-transparent"
         >
           <motion.h1
             initial="hidden"
             animate="visible"
-            className="text-7xl md:text-8xl tracking-tight text-[#13463B] dark:text-white select-none pointer-events-none pb-2 text-center flex items-center justify-center w-full"
-            style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900 }}
+            className="text-7xl md:text-8xl tracking-tighter text-[#13463B] dark:text-white select-none pointer-events-none pb-2 text-center flex items-center justify-center w-full"
+            style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900, letterSpacing: "-0.04em" }}
           >
             {/* The "border" the title must not go past - overflow-hidden creates this hard line effect */}
-            <div className="flex items-baseline justify-center overflow-hidden px-4 pt-6 pb-2">
+            <div className="flex items-baseline justify-center overflow-hidden px-20 pt-6 pb-2 w-full">
               {[
-                { char: 'L' },
-                { char: 'i', greenDot: true },
-                { char: 'S' },
-                { char: 'T' },
-                { char: 'A' }
+                { char: 'L', ml: '-0.06em' },
+                { char: 'I', greenDot: true, ml: '0.04em', scale: true },
+                { char: 'S', ml: '0.04em' },
+                { char: 'T', ml: '0.02em' },
+                { char: 'A', ml: '-0.1em' }
               ].map((item, index) => (
                 <motion.div 
                   key={index} 
                   className="relative inline-flex items-baseline justify-center"
                   initial={{ y: '100%', scale: 1.2 }}
+                  style={{ marginLeft: item.ml }}
                   animate={{ y: 0, scale: 1 }}
                   transition={{ 
                     duration: 0.7, 
@@ -90,11 +131,11 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.4, type: "spring", delay: 0.1 + index * 0.08 + 0.4 }}
-                        className="absolute bottom-[0.72em] left-1/2 -translate-x-1/2 w-[0.2em] h-[0.2em] bg-[#10C86E] rounded-full"
+                        className="absolute bottom-[0.60em] left-[62%] -translate-x-1/2 w-[0.2em] h-[0.2em] bg-[#10C86E] rounded-full"
                       ></motion.span>
                     )}
-                    <span className="leading-none">
-                      {item.char === 'i' ? 'ı' : item.char}
+                    <span className="leading-none" style={item.scale ? { fontSize: '0.65em' } : {}}>
+                      {item.char}
                     </span>
                   </div>
                 </motion.div>
@@ -175,9 +216,10 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
             <button 
               type="submit"
-              className="w-full mt-6 bg-[#13463B] hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:translate-y-[-1px] active:translate-y-[1px]"
+              disabled={loading}
+              className="w-full mt-6 bg-[#13463B] hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:translate-y-[-1px] active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>{isSignUp ? 'Sign Up' : 'Sign In'}</span>
+              <span>{loading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>

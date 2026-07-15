@@ -1,8 +1,9 @@
-const getToken = () => localStorage.getItem('lista-token') || localStorage.getItem('lista_token');
+const getToken = () => localStorage.getItem('lista-token');
 
-async function request(method, path, body = null) {
+async function request(method: string, path: string, body: any = null) {
   const token = getToken();
-  const headers = {
+  console.log(`[API] ${method} ${path} | token=${token ? token.substring(0, 20) + '...' : 'NONE'}`);
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   if (token) {
@@ -17,19 +18,22 @@ async function request(method, path, body = null) {
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
+    console.error(`[API] ${method} ${path} FAILED:`, errData);
     throw new Error(errData.error || `Request failed with status ${response.status}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log(`[API] ${method} ${path} OK`);
+  return data;
 }
 
 export const api = {
   // Authentication
-  async checkUser(method, credential) {
+  async checkUser(method: 'phone' | 'email', credential: string) {
     return request('POST', '/auth/check-user', { method, credential });
   },
 
-  async login(method, credential, displayName, photoUrl) {
+  async login(method: 'phone' | 'email' | 'google', credential: string, displayName?: string, photoUrl?: string) {
     const res = await request('POST', '/auth/login', {
       method,
       credential,
@@ -38,20 +42,17 @@ export const api = {
     });
     if (res.token) {
       localStorage.setItem('lista-token', res.token);
-      localStorage.setItem('lista_token', res.token);
       localStorage.setItem('lista-user', JSON.stringify(res.user));
-      localStorage.setItem('lista_user', JSON.stringify(res.user));
     }
     return res;
   },
 
-  async linkPaymentMethod(type, referenceToken) {
+  async linkPaymentMethod(type: 'gcash' | 'maya' | 'bank', referenceToken: string) {
     const res = await request('POST', '/users/me/payment-methods', {
       type: type.toLowerCase(),
       referenceToken
     });
     localStorage.setItem('lista-user', JSON.stringify(res));
-    localStorage.setItem('lista_user', JSON.stringify(res));
     return res;
   },
 
@@ -60,29 +61,29 @@ export const api = {
     return request('GET', '/groups');
   },
 
-  async getGroup(groupId) {
+  async getGroup(groupId: string) {
     return request('GET', `/groups/${groupId}`);
   },
 
-  async createGroup(name) {
+  async createGroup(name: string) {
     return request('POST', '/groups', { name });
   },
 
-  async getGroupMembers(groupId) {
+  async getGroupMembers(groupId: string) {
     return request('GET', `/groups/${groupId}/members`);
   },
 
-  async getJoinLink(groupId) {
+  async getJoinLink(groupId: string) {
     return request('POST', `/groups/${groupId}/join-link`);
   },
 
-  async joinGroup(slug) {
+  async joinGroup(slug: string) {
     const cleanSlug = slug.includes('/') ? slug.split('/').pop() : slug;
     return request('GET', `/join/${cleanSlug?.trim()}`);
   },
 
   // Expenses & Ledgers
-  async createExpense(groupId, expense) {
+  async createExpense(groupId: string, expense: { description: string; amount: number; category: string; paidBy: string; splitType?: string; participantIds?: string[] }) {
     const payload = {
       description: expense.description,
       amount: Math.round(expense.amount * 100), // convert to smallest unit centavos
@@ -95,16 +96,16 @@ export const api = {
     return request('POST', `/groups/${groupId}/expenses`, payload);
   },
 
-  async getExpenses(groupId) {
+  async getExpenses(groupId: string) {
     return request('GET', `/groups/${groupId}/expenses`);
   },
 
-  async getLedger(groupId) {
+  async getLedger(groupId: string) {
     return request('GET', `/groups/${groupId}/ledger`);
   },
 
   // Settlements & Roommates
-  async settleDebt(groupId, fromUserId, amount, method, toUserIds) {
+  async settleDebt(groupId: string, fromUserId: string, amount: number, method: 'qrph' | 'cash' | 'stellar', toUserIds: string[]) {
     const payload = {
       groupId,
       fromUserId,
@@ -115,27 +116,20 @@ export const api = {
     return request('POST', '/settlements', payload);
   },
 
-  async confirmSettlement(settlementId, toUserId) {
-    return request('POST', `/settlements/${settlementId}/confirm`, toUserId ? { toUserId } : null);
+  async confirmSettlement(settlementId: string) {
+    return request('POST', `/settlements/${settlementId}/confirm`);
   },
 
-  async nudgeRoommate(groupId, toUserId) {
+  async nudgeRoommate(groupId: string, toUserId: string) {
     return request('POST', `/groups/${groupId}/nudge`, { toUserId });
   },
 
-  async generateQrPh(groupId, fromUserId, toUserId, amountCentavos) {
+  async generateQrPh(groupId: string, fromUserId: string, toUserId: string, amountCentavos: number) {
     return request('POST', '/settlements/qrph/generate', {
       groupId,
       fromUserId,
       toUserId,
       amountCentavos
     });
-  },
-
-  // JS version compatibility aliases
-  getGroupJoinLink(groupId) { return this.getJoinLink(groupId); },
-  getGroupExpenses(groupId) { return this.getExpenses(groupId); },
-  getGroupLedger(groupId) { return this.getLedger(groupId); },
-  getGroupSettlements(groupId) { return request('GET', `/groups/${groupId}/settlements`); },
-  createSettlement(settlementData) { return request('POST', '/settlements', settlementData); }
+  }
 };

@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, ReceiptText, ArrowDownRight, ArrowUpRight, CheckCircle2 } from 'lucide-react';
-import { ExpenseItem } from '../types';
+import { ArrowLeft, ReceiptText, ArrowDownRight, ArrowUpRight, CheckCircle2, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
 
 interface ActivityItem {
   id: string;
-  type: 'pending' | 'paid' | 'debt' | 'settled';
+  type: 'paid_by_you' | 'you_owe' | 'settled';
   title: string;
   groupName: string;
   amount: number;
@@ -14,81 +14,118 @@ interface ActivityItem {
 }
 
 interface ActivityScreenProps {
-  expenses: ExpenseItem[];
   groups: { id: string; name: string }[];
   userName?: string;
   onBack: () => void;
 }
 
-export default function ActivityScreen({ expenses, groups, userName, onBack }: ActivityScreenProps) {
-  const activities = React.useMemo(() => {
-    const list: ActivityItem[] = [];
+export default function ActivityScreen({ groups, userName, onBack }: ActivityScreenProps) {
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    // Group completion checks
-    groups.forEach(group => {
-      const groupExpenses = expenses.filter(e => e.groupId === group.id);
-      if (groupExpenses.length > 0) {
-        const allSettled = groupExpenses.every(exp => exp.splits.every(s => s.paid));
-        if (allSettled) {
-          // Find the most recent date from the expenses
-          const latestDateStr = groupExpenses.reduce((latest, current) => {
-            if (current.date === 'Just now') return 'Just now';
-            if (latest === 'Just now') return 'Just now';
-            const curTime = new Date(current.date).getTime();
-            const latestTime = new Date(latest).getTime();
-            return curTime > latestTime ? current.date : latest;
-          }, groupExpenses[0].date);
+  const currentUser = useMemo(() => JSON.parse(localStorage.getItem('lista-user') || '{}'), []);
 
-          list.push({
-            id: `settled-${group.id}`,
-            type: 'settled',
-            title: 'LISTAHAN SETTLED',
-            groupName: group.name,
-            amount: 0,
-            person: '',
-            date: latestDateStr
+  useEffect(() => {
+    const loadActivities = async () => {
+      setLoading(true);
+      const allActivities: ActivityItem[] = [];
+
+      try {
+        for (const group of groups) {
+          const [expenses, members, ledger] = await Promise.all([
+            api.getExpenses(group.id),
+            api.getGroupMembers(group.id),
+            api.getLedger(group.id)
+          ]);
+
+          const getMemberName = (userId: string) => {
+            if (userId === currentUser.id) return 'You';
+            const member = members.find((m: any) => m.id === userId);
+            return member?.displayName || 'Roommate';
+          };
+
+          // Check if group is fully settled (all balances zero)
+          if (ledger?.balances && expenses.length > 0) {
+            const allZero = Object.values(ledger.balances).every((b: any) => Math.abs(b) < 1);
+            if (allZero) {
+              const latestDate = expenses.reduce((latest: string, exp: any) => {
+                const expTime = new Date(exp.createdAt).getTime();
+                const latestTime = new Date(latest).getTime();
+                return expTime > latestTime ? exp.createdAt : latest;
+              }, expenses[0].createdAt);
+
+              allActivities.push({
+                id: `settled-${group.id}`,
+                type: 'settled',
+                title: 'LISTAHAN SETTLED',
+                groupName: group.name,
+                amount: 0,
+                person: '',
+                date: latestDate
+              });
+            }
+          }
+
+          // Process each expense into activity items
+          expenses.forEach((exp: any) => {
+            const isYouPayer = exp.paidBy === currentUser.id;
+            const payerName = getMemberName(exp.paidBy);
+            const participants: string[] = exp.splitDetails?.participantIds || [];
+            const splitCount = participants.length || 1;
+            const perPersonAmount = (exp.amount / 100) / splitCount;
+
+            if (isYouPayer) {
+              // You paid — show each other participant as "Paid by You"
+              participants.forEach((pId: string) => {
+                if (pId === currentUser.id) return;
+                allActivities.push({
+                  id: `${exp.id}-${pId}`,
+                  type: 'paid_by_you',
+                  title: exp.description,
+                  groupName: group.name,
+                  amount: perPersonAmount,
+                  person: getMemberName(pId),
+                  date: exp.createdAt
+                });
+              });
+            } else if (participants.includes(currentUser.id)) {
+              // Someone else paid and you're in the split — you owe
+              allActivities.push({
+                id: `${exp.id}-${currentUser.id}`,
+                type: 'you_owe',
+                title: exp.description,
+                groupName: group.name,
+                amount: perPersonAmount,
+                person: payerName,
+                date: exp.createdAt
+              });
+            }
           });
         }
+
+        // Sort by date, newest first
+        allActivities.sort((a, b) => {
+          const timeA = a.date ? new Date(a.date).getTime() : 0;
+          const timeB = b.date ? new Date(b.date).getTime() : 0;
+          const validA = isNaN(timeA) ? 0 : timeA;
+          const validB = isNaN(timeB) ? 0 : timeB;
+          return validB - validA;
+        });
+
+        setActivities(allActivities);
+      } catch (err) {
+        console.error('Failed to load activities:', err);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
 
-    expenses.forEach(exp => {
-      const groupName = groups.find(g => g.id === exp.groupId)?.name || 'Unknown Group';
-      const isYouPayer = exp.payer.toLowerCase() === 'you' || exp.payer.toLowerCase() === 'me' || (userName && exp.payer.toLowerCase() === userName.toLowerCase());
-      
-      exp.splits.forEach(split => {
-        const isYouSplit = split.person.toLowerCase() === 'you' || split.person.toLowerCase() === 'me' || (userName && split.person.toLowerCase() === userName.toLowerCase());
-        
-        if (isYouPayer && !isYouSplit) {
-          list.push({
-            id: exp.id + '-' + split.person,
-            type: split.paid ? 'paid' : 'pending',
-            title: exp.title,
-            groupName: groupName,
-            amount: split.amountOwed,
-            person: split.person,
-            date: exp.date
-          });
-        } else if (!isYouPayer && isYouSplit) {
-          list.push({
-            id: exp.id + '-' + split.person,
-            type: split.paid ? 'paid' : 'debt',
-            title: exp.title,
-            groupName: groupName,
-            amount: split.amountOwed,
-            person: exp.payer,
-            date: exp.date
-          });
-        }
-      });
-    });
-
-    return list.sort((a, b) => { 
-      const timeA = a.date === 'Just now' ? Number.MAX_SAFE_INTEGER : new Date(a.date).getTime(); 
-      const timeB = b.date === 'Just now' ? Number.MAX_SAFE_INTEGER : new Date(b.date).getTime(); 
-      return timeB - timeA; 
-    });
-  }, [expenses, userName, groups]);
+    if (groups.length > 0) {
+      loadActivities();
+    } else {
+      setLoading(false);
+    }
+  }, [groups, currentUser.id]);
 
   return (
     <motion.div 
@@ -112,7 +149,11 @@ export default function ActivityScreen({ expenses, groups, userName, onBack }: A
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
-        {activities.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 size={32} className="animate-spin text-[#1B5648] dark:text-white" />
+          </div>
+        ) : activities.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-[#C8DACF] dark:border-slate-800 text-center shadow-sm flex flex-col items-center justify-center h-64">
             <div className="w-16 h-16 bg-[#FCECEE] dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 text-slate-400">
               <ReceiptText size={32} />
@@ -126,50 +167,45 @@ export default function ActivityScreen({ expenses, groups, userName, onBack }: A
               <div key={activity.id} className="bg-white dark:bg-slate-900 p-4 rounded-[24px] shadow-sm border border-[#C8DACF] dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0 ${
-                    activity.type === 'pending' ? 'bg-leaf-yellow/20 text-leaf-yellow-dark' :
-                    activity.type === 'paid' ? 'bg-leaf-green/20 text-leaf-green-dark' :
+                    activity.type === 'paid_by_you' ? 'bg-leaf-green/20 text-leaf-green-dark' :
                     activity.type === 'settled' ? 'bg-slate-100 text-[#316D5F] dark:bg-slate-800 dark:text-slate-300' :
                     'bg-leaf-pink/20 text-leaf-pink-dark'
                   }`}>
-                    {activity.type === 'pending' && <ReceiptText size={20} />}
-                    {activity.type === 'paid' && <ArrowDownRight size={20} />}
-                    {activity.type === 'debt' && <ArrowUpRight size={20} />}
+                    {activity.type === 'paid_by_you' && <ArrowDownRight size={20} />}
+                    {activity.type === 'you_owe' && <ArrowUpRight size={20} />}
                     {activity.type === 'settled' && <CheckCircle2 size={20} />}
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-[#13463B] dark:text-white leading-tight uppercase tracking-wide">
                       {activity.type === 'settled' ? 'LISTAHAN SETTLED' : activity.title}
                     </h4>
-                    <p className="text-xs font-medium mt-1 text-[#316D5F] dark:text-slate-400 uppercase">
+                    <p className="text-xs font-medium mt-1 text-[#316D5F] dark:text-slate-400">
                       <span className="text-[#1B5648] dark:text-slate-200 font-bold">{activity.groupName}</span>
-                      {activity.type !== 'settled' && ` | ${activity.person}`}
+                      {activity.type === 'paid_by_you' && ` · Paid by You`}
+                      {activity.type === 'you_owe' && ` · Paid by ${activity.person}`}
+                    </p>
+                    <p className="text-[10px] text-[#577870] dark:text-slate-500 mt-0.5">
+                      {new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
-                <div className="text-right shrink-0 flex flex-col justify-between items-end h-12">
-                  <span className={`block text-[10px] font-bold uppercase tracking-wider ${
-                    activity.type === 'pending' ? 'text-leaf-yellow-dark' :
-                    activity.type === 'paid' ? 'text-leaf-green-dark' :
-                    activity.type === 'settled' ? 'text-[#577870]' :
-                    'text-leaf-pink-dark'
-                  }`}>
-                    {activity.type === 'pending' ? 'Owes You' :
-                     activity.type === 'paid' ? 'Settled' :
-                     activity.type === 'settled' ? 'Completed' :
-                     'You Owe'}
-                  </span>
-                  
+                <div className="text-right shrink-0 flex flex-col justify-center items-end">
                   {activity.type !== 'settled' ? (
-                    <span className={`block font-black text-lg leading-none ${
-                      activity.type === 'pending' ? 'text-[#13463B] dark:text-white' :
-                      activity.type === 'paid' ? 'text-slate-400 dark:text-slate-500' :
-                      'text-leaf-pink dark:text-leaf-pink-dark'
-                    }`}>
-                      ₱{activity.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                    </span>
+                    <>
+                      <span className={`block text-[10px] font-bold uppercase tracking-wider ${
+                        activity.type === 'paid_by_you' ? 'text-leaf-green-dark' : 'text-leaf-pink-dark'
+                      }`}>
+                        {activity.type === 'paid_by_you' ? 'Owes You' : 'You Owe'}
+                      </span>
+                      <span className={`block font-black text-lg leading-none mt-1 ${
+                        activity.type === 'paid_by_you' ? 'text-[#13463B] dark:text-white' : 'text-leaf-pink dark:text-leaf-pink-dark'
+                      }`}>
+                        ₱{activity.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </span>
+                    </>
                   ) : (
-                    <span className="block font-medium text-xs text-slate-400 mt-1">
-                      {activity.date}
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-[#577870]">
+                      Completed
                     </span>
                   )}
                 </div>

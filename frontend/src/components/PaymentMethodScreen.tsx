@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Wallet, CreditCard, Building2, ChevronRight, CheckCircle2, Phone, ArrowRight, AlertCircle } from 'lucide-react';
+import { api } from '../services/api';
 
 interface PaymentMethodScreenProps {
   onNext: () => void;
@@ -25,7 +26,7 @@ export default function PaymentMethodScreen({ onNext }: PaymentMethodScreenProps
     setError('');
   };
 
-  const handleFinishSetup = () => {
+  const handleFinishSetup = async () => {
     if (!selected) {
       setError('Please select a payment method.');
       return;
@@ -48,7 +49,13 @@ export default function PaymentMethodScreen({ onNext }: PaymentMethodScreenProps
     }
 
     setError('');
-    onNext();
+    
+    try {
+      await api.linkPaymentMethod(selected, inputValue);
+      onNext();
+    } catch (err: any) {
+      setError(err.message || 'Failed to link payment method.');
+    }
   };
 
   return (

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { QrCode, Users, ArrowRight, UserPlus, AlertCircle, Link as LinkIcon, X, Search, ArrowLeft } from 'lucide-react';
+import { QrCode, Users, ArrowRight, UserPlus, AlertCircle, Link as LinkIcon, X, Search, ArrowLeft, FileText } from 'lucide-react';
 import QRScanner from './QRScanner';
+import jsQR from 'jsqr';
 
 interface GroupSetupScreenProps {
   onNext: (groupName: string) => void;
@@ -26,6 +27,37 @@ export default function GroupSetupScreen({ onNext, onBack }: GroupSetupScreenPro
     onNext(groupNameInput);
   };
 
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError('');
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        if (code) {
+          handleScan(code.data);
+        } else {
+          setError('Could not find a valid QR code in the uploaded image.');
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleJoinByLink = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setError('');
@@ -34,22 +66,23 @@ export default function GroupSetupScreen({ onNext, onBack }: GroupSetupScreenPro
       return;
     }
     
-    // Simulate group validation
-    if (!linkInput.includes('lista.app/join/')) {
-      setError('No such group. Please check the link and try again.');
+    const match = linkInput.match(/\/join\/([a-fA-F0-9-]+)/) || linkInput.match(/\/join\/([a-zA-Z0-9-]+)/);
+    if (!match) {
+      setError('Invalid invite link format. Make sure it contains /join/slug.');
       return;
     }
 
-    onNext('Joined Group');
+    onNext(`join:${match[1]}`);
   };
 
   const handleScan = (data: string) => {
-    if (!data.includes('lista.app/join/')) {
+    const match = data.match(/\/join\/([a-fA-F0-9-]+)/) || data.match(/\/join\/([a-zA-Z0-9-]+)/);
+    if (!match) {
       setError('Invalid QR code. No such group found.');
       setJoinMethod(null);
       return;
     }
-    onNext('Joined Group');
+    onNext(`join:${match[1]}`);
   };
 
   const handleScanError = (err: string) => {
@@ -239,6 +272,19 @@ export default function GroupSetupScreen({ onNext, onBack }: GroupSetupScreenPro
             
             <div className="w-full max-w-sm rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 relative z-10 bg-black">
               <QRScanner onScan={handleScan} onError={handleScanError} />
+            </div>
+
+            <div className="mt-6 relative z-10 text-center">
+              <label className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-xl cursor-pointer transition-all inline-flex items-center gap-2 border border-white/10 hover:scale-[1.02] active:scale-[0.98]">
+                <FileText size={18} />
+                <span>Upload QR from Gallery</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleQrUpload} 
+                  className="hidden" 
+                />
+              </label>
             </div>
           </motion.div>
         )}

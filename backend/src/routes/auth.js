@@ -6,6 +6,27 @@ const db = require('../db/database');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretapachatihackathonkey2026';
 
+router.post('/check-user', (req, res) => {
+  const { method, credential } = req.body;
+
+  if (!method || !credential) {
+    return res.status(400).json({ error: 'Missing method or credential' });
+  }
+
+  try {
+    let user;
+    if (method === 'phone') {
+      user = db.prepare('SELECT * FROM users WHERE phone = ?').get(credential);
+    } else {
+      user = db.prepare('SELECT * FROM users WHERE email = ?').get(credential);
+    }
+    return res.json({ exists: !!user });
+  } catch (err) {
+    console.error('Check user error:', err);
+    return res.status(500).json({ error: 'Database check failed' });
+  }
+});
+
 router.post('/login', (req, res) => {
   const { method, credential, displayName, photoUrl } = req.body;
 

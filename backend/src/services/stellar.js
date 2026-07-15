@@ -15,16 +15,23 @@ let feeBumperKeypair = null;
 
 // Helper to fund accounts via Friendbot
 async function fundAccount(publicKey) {
-  try {
-    const response = await fetch(
-      `https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`
-    );
-    if (!response.ok) {
-      throw new Error(`Friendbot returned status ${response.status}`);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await fetch(
+        `https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`
+      );
+      if (response.ok) {
+        return;
+      }
+      console.warn(`Friendbot funding attempt ${attempt} returned status ${response.status}. Retrying...`);
+    } catch (err) {
+      console.warn(`Friendbot funding attempt ${attempt} failed: ${err.message}. Retrying...`);
     }
-  } catch (err) {
-    console.error(`Warning: Failed to fund account ${publicKey} via Friendbot.`, err.message);
+    if (attempt < 3) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
   }
+  console.error(`Warning: Failed to fund account ${publicKey} via Friendbot after 3 attempts.`);
 }
 
 let feeBumperPromise = null;

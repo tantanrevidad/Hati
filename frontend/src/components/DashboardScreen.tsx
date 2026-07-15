@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Camera, ReceiptText, ChevronRight, User, LogOut, Users, ArrowUpRight, ArrowDownRight, FileText, CreditCard, Info, X, WifiOff, Activity, Scan, Sun, Moon } from 'lucide-react';
 import GroupDetailScreen from './GroupDetailScreen';
 import ActivityScreen from './ActivityScreen';
+import { api } from '../services/api';
 import { ExpenseItem } from '../types';
 
 
@@ -26,6 +27,20 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
   const [showAbout, setShowAbout] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [ledgers, setLedgers] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (groups.length > 0) {
+      groups.forEach(async (group) => {
+        try {
+          const ledger = await api.getLedger(group.id);
+          setLedgers(prev => ({ ...prev, [group.id]: ledger }));
+        } catch (err) {
+          console.error(`Failed to load ledger for group ${group.id}:`, err);
+        }
+      });
+    }
+  }, [groups]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -146,9 +161,6 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
                   <span className="text-xs font-bold text-[#316D5F] dark:text-slate-400">{isDarkMode ? 'Dark' : 'Light'}</span>
                 </button>
 
-                
-                <div className="h-px bg-[#C8DACF] dark:bg-slate-800 my-4" />
-
                 <button 
                   onClick={onAddBillingMethod}
                   className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[#E5F0E9] dark:hover:bg-slate-800/50 transition-colors group text-left"
@@ -218,28 +230,11 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
               </div>
             ) : (
               groups.map(group => {
-                let groupTotal = 0;
-                let owed = 0;
-                let owe = 0;
-            
-                expenses.filter(e => e.groupId === group.id).forEach(exp => {
-                  groupTotal += exp.totalAmount;
-                  const isYouPayer = exp.payer.toLowerCase() === 'you' || exp.payer.toLowerCase() === 'me' || (userName && exp.payer.toLowerCase() === userName.toLowerCase());
-                  exp.splits.forEach(split => {
-                    const isYouSplit = split.person.toLowerCase() === 'you' || split.person.toLowerCase() === 'me' || (userName && split.person.toLowerCase() === userName.toLowerCase());
-                    
-                    if (!split.paid) {
-                      if (isYouPayer && !isYouSplit) {
-                        owed += split.amountOwed;
-                      } else if (!isYouPayer && isYouSplit) {
-                        owe += split.amountOwed;
-                      }
-                    }
-                  });
-                });
-            
-                const netBalance = owed - owe;
-                const hasPending = expenses.filter(e => e.groupId === group.id).some(e => e.splits.some(s => !s.paid));
+                const currentUser = JSON.parse(localStorage.getItem('lista-user') || '{}');
+                const groupLedger = ledgers[group.id];
+                const netCentavos = groupLedger?.balances?.[currentUser.id] || 0;
+                const netBalance = netCentavos / 100;
+                const hasPending = groupLedger?.debts && groupLedger.debts.length > 0;
                 const initialChar = group.name.charAt(0).toUpperCase();
 
                 return (
@@ -313,7 +308,6 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
       <AnimatePresence>
         {showActivity && (
           <ActivityScreen 
-            expenses={expenses}
             groups={groups}
             userName={userName}
             onBack={() => { setShowActivity(false); setIsMenuOpen(true); }}

@@ -1,3 +1,5 @@
+const { GoogleGenAI, Type } = require('@google/genai');
+
 /**
  * Gemini AI Receipt Scanner Service
  */
@@ -15,76 +17,42 @@ async function parseReceipt(imageBase64, mimeType) {
     };
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-  const prompt = `Parse this receipt or invoice image and extract:
-1. The merchant or store name.
-2. The total amount of the receipt (represented in PHP centavos, i.e., multiply the decimal price by 100 and round to an integer).
-3. The category of the receipt (must be one of: 'rent', 'utilities', 'groceries', 'other').
-4. A short descriptive summary (e.g. "Dinner at Boracay Grill").
-
-Return ONLY a JSON object with this schema:
-{
-  "merchantName": "string",
-  "totalAmountCentavos": number,
-  "category": "rent | utilities | groceries | other",
-  "description": "string"
-}
-Do NOT wrap the response in markdown blocks. Output raw parseable JSON only.`;
-
-  const payload = {
-    contents: [
-      {
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: mimeType || 'image/jpeg',
-              data: imageBase64
-            }
-          }
-        ]
-      }
-    ],
-    generationConfig: {
-      responseMimeType: 'application/json'
-    }
-  };
+  const ai = new GoogleGenAI({ apiKey });
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          inlineData: {
+            mimeType: mimeType || 'image/jpeg',
+            data: imageBase64
+          }
+        },
+        'Parse this receipt or invoice image and extract the merchant or store name, total amount, category, and a short description.'
+      ],
+      config: {
+        systemInstruction: `Parse this receipt or invoice image and extract:
+1. The merchant or store name.
+2. The original currency and original total amount.
+3. The converted total amount of the receipt in PHP centavos (represented in PHP centavos, i.e., convert any non-PHP currency to PHP using a recent exchange rate, e.g., 1 USD ≈ 58 PHP, 1 SGD ≈ 43 PHP, then multiply by 100 and round to an integer).
+4. The category of the receipt (must be one of: 'rent', 'utilities', 'groceries', 'other').
+5. A short descriptive summary (e.g. "Dinner at Boracay Grill"). If the receipt was in a foreign currency, append the original amount and currency to the description, like: "Dinner at Boracay Grill (Converted from $10.00 USD)".`,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            merchantName: { type: Type.STRING },
+            totalAmountCentavos: { type: Type.INTEGER },
+            category: { type: Type.STRING, enum: ['rent', 'utilities', 'groceries', 'other'] },
+            description: { type: Type.STRING }
+          },
+          required: ['merchantName', 'totalAmountCentavos', 'category', 'description']
+        }
+      }
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API returned status ${response.status}: ${errText}`);
-    }
-
-    const resData = await response.json();
-    if (!resData.candidates || resData.candidates.length === 0) {
-      throw new Error('Gemini API returned empty response candidates');
-    }
-
-    const rawText = resData.candidates[0].content.parts[0].text;
-    
-    // Strip markdown formatting if Gemini mistakenly included it
-    let cleanText = rawText.trim();
-    if (cleanText.startsWith('```')) {
-      cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '').trim();
-    }
-
-    const parsed = JSON.parse(cleanText);
-    
-    // Validate schema
-    if (!parsed.merchantName || !parsed.totalAmountCentavos || !parsed.category || !parsed.description) {
-      throw new Error('Gemini parsed JSON is missing required fields');
-    }
-
+    const parsed = JSON.parse(response.text);
     return parsed;
   } catch (err) {
     console.error('Error invoking Gemini API:', err.message);
