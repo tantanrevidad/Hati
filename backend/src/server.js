@@ -23,6 +23,20 @@ app.use('/users', userRoutes);
 app.use('/', groupRoutes);
 app.use('/', settlementRoutes);
 
+const { analyzeReceiptText } = require('./services/gemini');
+const authMiddleware = require('./middleware/auth');
+
+app.post('/api/analyze-receipt', authMiddleware, async (req, res) => {
+  try {
+    const { description, groupMembersCount, userName } = req.body;
+    const parsedData = await analyzeReceiptText(description, groupMembersCount, userName);
+    res.json(parsedData);
+  } catch (err) {
+    console.error('Error in analyze-receipt endpoint:', err.message);
+    res.status(500).json({ error: err.message || 'Failed to analyze receipt text' });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
