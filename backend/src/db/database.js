@@ -9,7 +9,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  max: 2,
+  idleTimeoutMillis: 1000,
+  connectionTimeoutMillis: 2000
 });
 
 // Convert SQLite '?' placeholders to PostgreSQL '$1', '$2', etc.
