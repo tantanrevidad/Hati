@@ -64,6 +64,15 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
   
 
 
+  const reloadLedger = async (groupId: string) => {
+    try {
+      const ledger = await api.getLedger(groupId);
+      setLedgers(prev => ({ ...prev, [groupId]: ledger }));
+    } catch (err) {
+      console.error(`Failed to load ledger for group ${groupId}:`, err);
+    }
+  };
+
   const toggleDarkMode = () => {
     if (document.documentElement.classList.contains('dark')) {
       document.documentElement.classList.remove('dark');
@@ -297,7 +306,12 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
             group={selectedGroup}
             expenses={expenses}
             setExpenses={setExpenses}
-            onBack={() => setSelectedGroup(null)} 
+            onBack={() => {
+              if (selectedGroup) {
+                reloadLedger(selectedGroup.id);
+              }
+              setSelectedGroup(null);
+            }} 
             userName={userName}
           />
         )}

@@ -24,10 +24,18 @@ const USER_MARK   = 'demo-user-002';
 const USER_RINA   = 'demo-user-003';
 const USER_JUN    = 'demo-user-004';
 const USER_BEA    = 'demo-user-005';
+const USER_ALEX   = 'demo-user-006';
+const USER_CHLOE  = 'demo-user-007';
+const USER_DAVE   = 'demo-user-008';
+const USER_ELLA   = 'demo-user-009';
+const USER_FRED   = 'demo-user-010';
 
 const GROUP_TRIP  = 'demo-group-trip';
 const GROUP_CONDO = 'demo-group-condo';
 const GROUP_LUNCH = 'demo-group-lunch';
+const GROUP_EUROPE = 'demo-group-europe';
+const GROUP_SPOTIFY = 'demo-group-spotify';
+const GROUP_NOBU   = 'demo-group-nobu';
 
 async function query(sql, params = []) {
   return pool.query(sql, params);
@@ -40,8 +48,8 @@ async function seed() {
 
   console.log('🧹 Cleaning existing demo data...');
   
-  const demoUserIds = [ADMIN_ID, USER_MARK, USER_RINA, USER_JUN, USER_BEA];
-  const demoGroupIds = [GROUP_TRIP, GROUP_CONDO, GROUP_LUNCH];
+  const demoUserIds = [ADMIN_ID, USER_MARK, USER_RINA, USER_JUN, USER_BEA, USER_ALEX, USER_CHLOE, USER_DAVE, USER_ELLA, USER_FRED];
+  const demoGroupIds = [GROUP_TRIP, GROUP_CONDO, GROUP_LUNCH, GROUP_EUROPE, GROUP_SPOTIFY, GROUP_NOBU];
 
   // Delete in correct order for foreign key constraints
   for (const gid of demoGroupIds) {
@@ -143,6 +151,72 @@ async function seed() {
       walletAddress: null,
       walletSecret: null,
       createdAt: fourDaysAgo
+    },
+    {
+      id: USER_ALEX,
+      displayName: 'Alex Diaz',
+      photoUrl: null,
+      phone: '+639226789012',
+      email: 'alex@demo.com',
+      authMethod: 'email',
+      linkedPaymentMethods: JSON.stringify([
+        { type: 'gcash', referenceToken: '09226789012', linkedAt: fiveDaysAgo }
+      ]),
+      walletAddress: null,
+      walletSecret: null,
+      createdAt: fiveDaysAgo
+    },
+    {
+      id: USER_CHLOE,
+      displayName: 'Chloe Tan',
+      photoUrl: null,
+      phone: '+639237890123',
+      email: 'chloe@demo.com',
+      authMethod: 'email',
+      linkedPaymentMethods: JSON.stringify([]),
+      walletAddress: null,
+      walletSecret: null,
+      createdAt: fiveDaysAgo
+    },
+    {
+      id: USER_DAVE,
+      displayName: 'Dave Ramos',
+      photoUrl: null,
+      phone: '+639248901234',
+      email: 'dave@demo.com',
+      authMethod: 'google',
+      linkedPaymentMethods: JSON.stringify([
+        { type: 'maya', referenceToken: '09248901234', linkedAt: fourDaysAgo }
+      ]),
+      walletAddress: null,
+      walletSecret: null,
+      createdAt: fourDaysAgo
+    },
+    {
+      id: USER_ELLA,
+      displayName: 'Ella Santos',
+      photoUrl: null,
+      phone: '+639259012345',
+      email: 'ella@demo.com',
+      authMethod: 'phone',
+      linkedPaymentMethods: JSON.stringify([]),
+      walletAddress: null,
+      walletSecret: null,
+      createdAt: fourDaysAgo
+    },
+    {
+      id: USER_FRED,
+      displayName: 'Fred Lim',
+      photoUrl: null,
+      phone: '+639260123456',
+      email: 'fred@demo.com',
+      authMethod: 'email',
+      linkedPaymentMethods: JSON.stringify([
+        { type: 'gcash', referenceToken: '09260123456', linkedAt: threeDaysAgo }
+      ]),
+      walletAddress: null,
+      walletSecret: null,
+      createdAt: threeDaysAgo
     }
   ];
 
@@ -190,6 +264,36 @@ async function seed() {
       status: 'active',
       zeroBalanceSince: null,
       members: [ADMIN_ID, USER_MARK, USER_JUN, USER_BEA]
+    },
+    {
+      id: GROUP_EUROPE,
+      name: 'Europe Tour 🇪🇺',
+      hostId: ADMIN_ID,
+      joinSlug: 'euro2026',
+      createdAt: sixDaysAgo,
+      status: 'active',
+      zeroBalanceSince: null,
+      members: [ADMIN_ID, USER_MARK, USER_RINA, USER_JUN, USER_BEA, USER_ALEX, USER_CHLOE, USER_DAVE, USER_ELLA, USER_FRED]
+    },
+    {
+      id: GROUP_SPOTIFY,
+      name: 'Spotify Family Plan 🎵',
+      hostId: ADMIN_ID,
+      joinSlug: 'spotifam',
+      createdAt: oneWeekAgo,
+      status: 'active',
+      zeroBalanceSince: null,
+      members: [ADMIN_ID, USER_MARK, USER_RINA, USER_JUN, USER_BEA, USER_ALEX]
+    },
+    {
+      id: GROUP_NOBU,
+      name: 'Dinner at Nobu 🍣',
+      hostId: ADMIN_ID,
+      joinSlug: 'nobudinner',
+      createdAt: twoDaysAgo,
+      status: 'active',
+      zeroBalanceSince: null,
+      members: [ADMIN_ID, USER_MARK]
     }
   ];
 
@@ -211,15 +315,6 @@ async function seed() {
   console.log('');
 
   // ─── 4. Create Expenses ──────────────────────────────────────────────────
-  //
-  // These expenses demonstrate:
-  //  - Equal splits across all members (default)
-  //  - Equal splits with specific participants (@mentions)
-  //  - Custom splits with exact amounts per person
-  //  - Multiple payers across the group
-  //  - Various categories & sources
-  //
-  // ─────────────────────────────────────────────────────────────────────────
 
   console.log('💸 Creating expenses...');
 
@@ -230,7 +325,7 @@ async function seed() {
       groupId: GROUP_TRIP,
       description: 'Beach resort villa — 3 nights',
       mentions: JSON.stringify([]),
-      amount: 2500000, // ₱25,000.00
+      amount: 2500000,
       currency: 'PHP',
       category: 'accommodation',
       paidBy: ADMIN_ID,
@@ -245,7 +340,7 @@ async function seed() {
       groupId: GROUP_TRIP,
       description: 'Grocery run — snacks, drinks, and sunscreen',
       mentions: JSON.stringify([]),
-      amount: 480000, // ₱4,800.00
+      amount: 480000,
       currency: 'PHP',
       category: 'groceries',
       paidBy: USER_MARK,
@@ -260,7 +355,7 @@ async function seed() {
       groupId: GROUP_TRIP,
       description: 'Island hopping boat tour for everyone',
       mentions: JSON.stringify([]),
-      amount: 750000, // ₱7,500.00
+      amount: 750000,
       currency: 'PHP',
       category: 'activities',
       paidBy: USER_RINA,
@@ -275,18 +370,18 @@ async function seed() {
       groupId: GROUP_TRIP,
       description: 'Dinner at Lemoni Café — @Mark and @Rina had extra cocktails',
       mentions: JSON.stringify([USER_MARK, USER_RINA]),
-      amount: 620000, // ₱6,200.00
+      amount: 620000,
       currency: 'PHP',
       category: 'dining',
       paidBy: ADMIN_ID,
       splitType: 'custom',
       splitDetails: JSON.stringify({
         shares: {
-          [ADMIN_ID]: 100000,   // ₱1,000 (just food)
-          [USER_MARK]: 180000,  // ₱1,800 (food + cocktails)
-          [USER_RINA]: 170000,  // ₱1,700 (food + cocktails)
-          [USER_JUN]: 85000,    // ₱850 (light meal)
-          [USER_BEA]: 85000     // ₱850 (light meal)
+          [ADMIN_ID]: 100000,
+          [USER_MARK]: 180000,
+          [USER_RINA]: 170000,
+          [USER_JUN]: 85000,
+          [USER_BEA]: 85000
         }
       }),
       source: 'manual_description',
@@ -298,7 +393,7 @@ async function seed() {
       groupId: GROUP_TRIP,
       description: 'Jet ski rental — only @Admin, @Jun, and @Bea went',
       mentions: JSON.stringify([ADMIN_ID, USER_JUN, USER_BEA]),
-      amount: 450000, // ₱4,500.00
+      amount: 450000,
       currency: 'PHP',
       category: 'activities',
       paidBy: USER_JUN,
@@ -313,7 +408,7 @@ async function seed() {
       groupId: GROUP_TRIP,
       description: 'Parasailing adventure 🪂',
       mentions: JSON.stringify([]),
-      amount: 350000, // ₱3,500.00
+      amount: 350000,
       currency: 'PHP',
       category: 'activities',
       paidBy: USER_BEA,
@@ -328,18 +423,18 @@ async function seed() {
       groupId: GROUP_TRIP,
       description: 'Farewell dinner at Smoke Restaurant — custom bill split',
       mentions: JSON.stringify([]),
-      amount: 850000, // ₱8,500.00
+      amount: 850000,
       currency: 'PHP',
       category: 'dining',
       paidBy: USER_MARK,
       splitType: 'custom',
       splitDetails: JSON.stringify({
         shares: {
-          [ADMIN_ID]: 200000,   // ₱2,000
-          [USER_MARK]: 150000,  // ₱1,500
-          [USER_RINA]: 200000,  // ₱2,000
-          [USER_JUN]: 150000,   // ₱1,500
-          [USER_BEA]: 150000    // ₱1,500
+          [ADMIN_ID]: 200000,
+          [USER_MARK]: 150000,
+          [USER_RINA]: 200000,
+          [USER_JUN]: 150000,
+          [USER_BEA]: 150000
         }
       }),
       source: 'invoice_scan',
@@ -353,7 +448,7 @@ async function seed() {
       groupId: GROUP_CONDO,
       description: 'July rent — condo unit',
       mentions: JSON.stringify([]),
-      amount: 4500000, // ₱45,000.00
+      amount: 4500000,
       currency: 'PHP',
       category: 'rent',
       paidBy: ADMIN_ID,
@@ -368,7 +463,7 @@ async function seed() {
       groupId: GROUP_CONDO,
       description: 'Meralco electricity bill — June',
       mentions: JSON.stringify([]),
-      amount: 285000, // ₱2,850.00
+      amount: 285000,
       currency: 'PHP',
       category: 'utilities',
       paidBy: USER_MARK,
@@ -383,7 +478,7 @@ async function seed() {
       groupId: GROUP_CONDO,
       description: 'WiFi subscription — PLDT Home Fibr',
       mentions: JSON.stringify([]),
-      amount: 249900, // ₱2,499.00
+      amount: 249900,
       currency: 'PHP',
       category: 'utilities',
       paidBy: USER_RINA,
@@ -398,16 +493,16 @@ async function seed() {
       groupId: GROUP_CONDO,
       description: 'Water bill — Manila Water',
       mentions: JSON.stringify([]),
-      amount: 95000, // ₱950.00
+      amount: 95000,
       currency: 'PHP',
       category: 'utilities',
       paidBy: ADMIN_ID,
       splitType: 'custom',
       splitDetails: JSON.stringify({
         shares: {
-          [ADMIN_ID]: 40000,   // ₱400 (has en-suite, uses more water)
-          [USER_MARK]: 30000,  // ₱300
-          [USER_RINA]: 25000   // ₱250
+          [ADMIN_ID]: 40000,
+          [USER_MARK]: 30000,
+          [USER_RINA]: 25000
         }
       }),
       source: 'invoice_scan',
@@ -421,7 +516,7 @@ async function seed() {
       groupId: GROUP_LUNCH,
       description: 'Ramen Nagi — Friday lunch',
       mentions: JSON.stringify([]),
-      amount: 320000, // ₱3,200.00
+      amount: 320000,
       currency: 'PHP',
       category: 'dining',
       paidBy: USER_MARK,
@@ -436,7 +531,7 @@ async function seed() {
       groupId: GROUP_LUNCH,
       description: 'Milk tea run — Tiger Sugar 🧋',
       mentions: JSON.stringify([]),
-      amount: 76000, // ₱760.00
+      amount: 76000,
       currency: 'PHP',
       category: 'dining',
       paidBy: USER_BEA,
@@ -451,21 +546,113 @@ async function seed() {
       groupId: GROUP_LUNCH,
       description: 'Korean BBQ — @Jun had extra samgyupsal',
       mentions: JSON.stringify([USER_JUN]),
-      amount: 420000, // ₱4,200.00
+      amount: 420000,
       currency: 'PHP',
       category: 'dining',
       paidBy: ADMIN_ID,
       splitType: 'custom',
       splitDetails: JSON.stringify({
         shares: {
-          [ADMIN_ID]: 100000,  // ₱1,000
-          [USER_MARK]: 100000, // ₱1,000
-          [USER_JUN]: 120000,  // ₱1,200 (extra samgyupsal)
-          [USER_BEA]: 100000   // ₱1,000
+          [ADMIN_ID]: 100000,
+          [USER_MARK]: 100000,
+          [USER_JUN]: 120000,
+          [USER_BEA]: 100000
         }
       }),
       source: 'manual_description',
       createdAt: yesterday,
+      syncStatus: 'synced'
+    },
+
+    // ──── GROUP: Europe Tour (You Owe) ──────────────────────────────────────
+    {
+      id: uuidv4(),
+      groupId: GROUP_EUROPE,
+      description: 'Flight tickets to Paris',
+      mentions: JSON.stringify([]),
+      amount: 10000000,
+      currency: 'PHP',
+      category: 'transport',
+      paidBy: USER_DAVE,
+      splitType: 'equal',
+      splitDetails: JSON.stringify({ participantIds: [ADMIN_ID, USER_MARK, USER_RINA, USER_JUN, USER_BEA, USER_ALEX, USER_CHLOE, USER_DAVE, USER_ELLA, USER_FRED] }),
+      source: 'manual_description',
+      createdAt: sixDaysAgo,
+      syncStatus: 'synced'
+    },
+    {
+      id: uuidv4(),
+      groupId: GROUP_EUROPE,
+      description: 'Hotel booking - 5 nights',
+      mentions: JSON.stringify([]),
+      amount: 8000000,
+      currency: 'PHP',
+      category: 'accommodation',
+      paidBy: USER_CHLOE,
+      splitType: 'equal',
+      splitDetails: JSON.stringify({ participantIds: [ADMIN_ID, USER_MARK, USER_RINA, USER_JUN, USER_BEA, USER_ALEX, USER_CHLOE, USER_DAVE, USER_ELLA, USER_FRED] }),
+      source: 'manual_description',
+      createdAt: fiveDaysAgo,
+      syncStatus: 'synced'
+    },
+    {
+      id: uuidv4(),
+      groupId: GROUP_EUROPE,
+      description: 'Louvre Museum Tickets',
+      mentions: JSON.stringify([USER_MARK, USER_RINA]),
+      amount: 150000,
+      currency: 'PHP',
+      category: 'activities',
+      paidBy: ADMIN_ID,
+      splitType: 'custom',
+      splitDetails: JSON.stringify({
+        shares: {
+          [ADMIN_ID]: 50000,
+          [USER_MARK]: 50000,
+          [USER_RINA]: 50000
+        }
+      }),
+      source: 'manual_description',
+      createdAt: fourDaysAgo,
+      syncStatus: 'synced'
+    },
+
+    // ──── GROUP: Spotify Family Plan (You are Owed) ─────────────────────────
+    {
+      id: uuidv4(),
+      groupId: GROUP_SPOTIFY,
+      description: 'Spotify Family Subscription - 1 Year',
+      mentions: JSON.stringify([]),
+      amount: 239400,
+      currency: 'PHP',
+      category: 'utilities',
+      paidBy: ADMIN_ID,
+      splitType: 'equal',
+      splitDetails: JSON.stringify({ participantIds: [ADMIN_ID, USER_MARK, USER_RINA, USER_JUN, USER_BEA, USER_ALEX] }),
+      source: 'manual_description',
+      createdAt: sixDaysAgo,
+      syncStatus: 'synced'
+    },
+
+    // ──── GROUP: Dinner at Nobu (Fully Settled) ─────────────────────────────
+    {
+      id: uuidv4(),
+      groupId: GROUP_NOBU,
+      description: 'Nobu Omakase Tasting Menu',
+      mentions: JSON.stringify([]),
+      amount: 600000,
+      currency: 'PHP',
+      category: 'dining',
+      paidBy: ADMIN_ID,
+      splitType: 'custom',
+      splitDetails: JSON.stringify({
+        shares: {
+          [ADMIN_ID]: 200000,
+          [USER_MARK]: 400000
+        }
+      }),
+      source: 'manual_description',
+      createdAt: twoDaysAgo,
       syncStatus: 'synced'
     }
   ];
@@ -483,13 +670,6 @@ async function seed() {
   console.log('');
 
   // ─── 5. Create Settlements ───────────────────────────────────────────────
-  //
-  // These demonstrate:
-  //  - A confirmed QRPH settlement (auto-confirmed)
-  //  - An awaiting_confirmation cash settlement
-  //  - Shows the settlement engine reducing total transactions needed
-  //
-  // ─────────────────────────────────────────────────────────────────────────
 
   console.log('🤝 Creating settlements...');
 
@@ -541,6 +721,23 @@ async function seed() {
 
   console.log('   ✅ Bea → Mark ₱1,000 via QRPH (confirmed) — Team Lunch');
 
+  // Settlement 4: Mark pays Admin via Stellar for Dinner at Nobu (fully settled)
+  const settle4Id = uuidv4();
+  const confirm4Id = uuidv4();
+  const stellarTxHash = '0x7b6d5c4e3a2b1f09876543210fedcba9876543210fedcba9876543210fedcba9';
+
+  await query(`
+    INSERT INTO settlements (id, groupId, fromUserId, method, amount, status, stellarTxHash, initiatedAt)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+  `, [settle4Id, GROUP_NOBU, USER_MARK, 'stellar', 400000, 'confirmed', stellarTxHash, yesterday]);
+
+  await query(`
+    INSERT INTO confirmations (id, settlementId, toUserId, amount, confirmedAt)
+    VALUES ($1, $2, $3, $4, $5)
+  `, [confirm4Id, settle4Id, ADMIN_ID, 400000, yesterday]);
+
+  console.log('   ✅ Mark → Admin ₱4,000 via Stellar (confirmed, on-chain hash verified) — Dinner at Nobu');
+
   console.log('');
 
   // ─── 6. Print Summary ────────────────────────────────────────────────────
@@ -562,19 +759,7 @@ async function seed() {
   console.log(`     • ${users.length} users (1 admin + ${users.length - 1} dummy)`);
   console.log(`     • ${groups.length} groups`);
   console.log(`     • ${expenses.length} expenses (equal + custom splits)`);
-  console.log('     • 3 settlements (QRPH confirmed + Cash awaiting)');
-  console.log('');
-  console.log('  🧠 Smart Splitting Demo Highlights:');
-  console.log('     • Boracay Trip: 7 expenses mixing equal & custom splits');
-  console.log('     • Jet ski rental: only 3/5 members participated');
-  console.log('     • Dinner at Lemoni: custom per-person amounts');
-  console.log('     • BGC Condo: utilities with proportional water split');
-  console.log('');
-  console.log('  ⚡ Smart Settlement Demo Highlights:');
-  console.log('     • Debt simplification reduces N×N debts to minimal transactions');
-  console.log('     • View the ledger at GET /groups/:id/ledger');
-  console.log('     • Confirmed QRPH settlement already factored into balances');
-  console.log('     • Pending cash settlement awaiting Admin confirmation');
+  console.log('     • 4 settlements (QRPH, Cash, and Stellar)');
   console.log('');
   console.log('═══════════════════════════════════════════════════════════');
 
