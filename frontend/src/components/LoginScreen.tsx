@@ -152,15 +152,17 @@ export default function LoginScreen({ onLogin, onNext }: LoginScreenProps) {
           className={`w-full max-w-sm px-6 relative z-10 ${showForm ? 'pointer-events-auto' : 'pointer-events-none'}`}
         >
         {/* Layered Paper Stack Effect under the main card */}
-        <div className="absolute inset-x-9 -bottom-2 h-8 bg-leaf-pink/30 dark:bg-leaf-pink-dark/20 rounded-2xl -rotate-2 shadow-md transform translate-y-1 transition-transform" />
-        <div className="absolute inset-x-8 -bottom-1 h-8 bg-leaf-yellow/40 dark:bg-leaf-yellow-dark/25 rounded-2xl rotate-1 shadow-md transform translate-y-0.5 transition-transform" />
-
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl border-2 border-[#C8DACF] dark:border-slate-800 relative overflow-hidden">
+        <div className="absolute inset-x-6 -bottom-5 top-10 bg-[#13463B] dark:bg-[#1C2125] rounded-3xl shadow-md z-0" />
+        <div className="absolute inset-x-6 -bottom-2.5 top-10 bg-[#E5E1D3] dark:bg-[#252B2F] rounded-3xl shadow-md z-0" />
+        
+        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 border-2 border-[#C8DACF] dark:border-slate-800 relative z-10">
           {/* Notebook decorative binder rings detail */}
-          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 flex gap-4 -mt-3">
-            <div className="w-3 h-6 bg-slate-300 dark:bg-slate-600 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] border border-slate-400" />
-            <div className="w-3 h-6 bg-slate-300 dark:bg-slate-600 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] border border-slate-400" />
-            <div className="w-3 h-6 bg-slate-300 dark:bg-slate-600 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] border border-slate-400" />
+          <div className="absolute -top-3 left-0 right-0 flex justify-center gap-8 z-20">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="relative w-4 h-7 bg-[#13463B] dark:bg-slate-500 rounded-full shadow-md border border-[#0D3028] dark:border-slate-700">
+                <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-2.5 h-2.5 bg-black/20 dark:bg-black/40 rounded-full shadow-inner" />
+              </div>
+            ))}
           </div>
 
           <div className="text-center mb-6 mt-2">

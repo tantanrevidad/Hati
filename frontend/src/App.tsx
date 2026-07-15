@@ -88,13 +88,18 @@ export default function App() {
     setCurrentScreen('dashboard');
   };
 
-  const handleProfileCreated = async (name: string, color: string) => {
+  const handleProfileCreated = async (name: string, color: string, photoUrl?: string | null) => {
     try {
       // Call backend `/auth/login` to register/login lazily
       const res = await api.login('email', userEmail, name);
       setUserName(res.user.displayName);
       setUserColor(color);
       localStorage.setItem('userColor', color);
+      if (photoUrl) {
+        localStorage.setItem('userPhoto', photoUrl);
+      } else {
+        localStorage.removeItem('userPhoto');
+      }
       setReturnToMenu(false);
       setCurrentScreen('payment_setup');
     } catch (err: any) {
@@ -139,6 +144,8 @@ export default function App() {
     localStorage.removeItem('lista-token');
     localStorage.removeItem('lista-user');
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('userPhoto');
+    localStorage.removeItem('userColor');
     setUserName('');
     setUserEmail('');
     setGroups([]);

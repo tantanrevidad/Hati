@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { User, Camera, ArrowRight, Check, AlertCircle } from 'lucide-react';
 
 interface ProfileScreenProps {
-  onNext: (name: string, color: string) => void;
+  onNext: (name: string, color: string, photoUrl?: string | null) => void;
 }
 
 const AVATAR_COLORS = [
@@ -16,7 +16,20 @@ const AVATAR_COLORS = [
 export default function ProfileScreen({ onNext }: ProfileScreenProps) {
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
+  const [localPhoto, setLocalPhoto] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLocalPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleNext = () => {
     setError('');
@@ -24,7 +37,7 @@ export default function ProfileScreen({ onNext }: ProfileScreenProps) {
       setError('Please enter your name.');
       return;
     }
-    onNext(name, selectedColor);
+    onNext(name, selectedColor, localPhoto);
   };
 
   return (
@@ -34,26 +47,20 @@ export default function ProfileScreen({ onNext }: ProfileScreenProps) {
 
       <div className="w-full max-w-md relative">
         {/* Layered Paper Stack under the card - explicit lower z-index */}
-        <div className="absolute inset-x-8 -bottom-3 h-20 bg-leaf-peach/40 dark:bg-leaf-peach-dark/30 rounded-3xl rotate-2 shadow-lg z-0" />
-        <div className="absolute inset-x-6 -bottom-1 h-20 bg-leaf-yellow/50 dark:bg-leaf-yellow-dark/30 rounded-3xl -rotate-1 shadow-md z-0" />
-        
-        {/* Decorative Tape Sticker holding the "notebook" card - higher z-index */}
-        <div className="absolute -top-6 left-12 w-28 h-8 bg-leaf-pink/40 dark:bg-leaf-pink-dark/30 backdrop-blur-sm -rotate-6 border border-white/20 dark:border-slate-800/20 shadow-sm z-20 flex items-center justify-center">
-          <div className="w-full h-full border-x-2 border-dashed border-white/40" />
-        </div>
+        <div className="absolute inset-x-6 -bottom-5 top-10 bg-[#13463B] dark:bg-[#1C2125] rounded-3xl shadow-md z-0" />
+        <div className="absolute inset-x-6 -bottom-2.5 top-10 bg-[#E5E1D3] dark:bg-[#252B2F] rounded-3xl shadow-md z-0" />
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-8 border-2 border-[#C8DACF] dark:border-slate-800 relative overflow-hidden z-10"
+          className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 border-2 border-[#C8DACF] dark:border-slate-800 relative z-10"
         >
-          {/* Spiral binder holes at top of page */}
-          <div className="absolute top-0 inset-x-0 flex justify-around px-8 -mt-3.5 z-20">
-            {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="flex flex-col items-center">
-                <div className="w-4 h-4 rounded-full bg-[#E5E1D3] dark:bg-[#252B2F] border-2 border-[#C8DACF] dark:border-slate-800 shadow-inner" />
-                <div className="w-2.5 h-6 bg-slate-300 dark:bg-slate-600 rounded-full -mt-2 border border-slate-400 shadow-sm" />
+          {/* Notebook decorative binder rings detail */}
+          <div className="absolute -top-3 left-0 right-0 flex justify-center gap-8 z-20">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="relative w-4 h-7 bg-[#13463B] dark:bg-slate-500 rounded-full shadow-md border border-[#0D3028] dark:border-slate-700">
+                <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-2.5 h-2.5 bg-black/20 dark:bg-black/40 rounded-full shadow-inner" />
               </div>
             ))}
           </div>
@@ -76,13 +83,28 @@ export default function ProfileScreen({ onNext }: ProfileScreenProps) {
           )}
 
           <div className="flex flex-col items-center mb-8">
-            <div className="relative group">
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              accept="image/*" 
+              className="hidden" 
+            />
+            <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
               {/* Colored ring behind profile picture to show contrast */}
               <div className="absolute inset-0 -m-1.5 rounded-full bg-gradient-to-r from-leaf-pink via-leaf-yellow to-leaf-green animate-pulse opacity-40 blur-sm" />
-              <div className={`w-32 h-32 rounded-full ${selectedColor} flex items-center justify-center text-[#13463B] dark:text-slate-100 text-5xl font-black shadow-xl border-4 border-white dark:border-slate-800 transition-all duration-300 relative z-10`}>
-                {name.trim().charAt(0).toUpperCase() || <User size={48} className="stroke-[2.5]" />}
+              <div className={`w-32 h-32 rounded-full ${localPhoto ? '' : selectedColor} flex items-center justify-center text-[#13463B] dark:text-slate-100 text-5xl font-black shadow-xl border-4 border-white dark:border-slate-800 transition-all duration-300 relative z-10 overflow-hidden`}>
+                {localPhoto ? (
+                  <img src={localPhoto} alt="Profile preview" className="w-full h-full object-cover" />
+                ) : (
+                  name.trim().charAt(0).toUpperCase() || <User size={48} className="stroke-[2.5]" />
+                )}
               </div>
-              <button className="absolute bottom-0 right-0 bg-[#13463B] hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 p-3 rounded-full shadow-lg border-2 border-white dark:border-slate-900 hover:scale-110 transition-transform z-20">
+              <button 
+                type="button"
+                onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                className="absolute bottom-0 right-0 bg-[#13463B] hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 p-3 rounded-full shadow-lg border-2 border-white dark:border-slate-900 hover:scale-110 transition-transform z-20"
+              >
                 <Camera size={18} className="stroke-[2.5]" />
               </button>
             </div>

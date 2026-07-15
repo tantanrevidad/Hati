@@ -460,13 +460,20 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
               const colorIndex = parseInt(m.id.replace(/\D/g, '') || '0', 10) % colors.length;
               const bgClass = colors[isNaN(colorIndex) ? 0 : colorIndex];
 
+              const isCurrentUser = m.id === currentUser.id;
+              const localUserPhoto = isCurrentUser ? localStorage.getItem('userPhoto') : null;
+
               return (
                 <div 
                   key={m.id}
-                  className={`w-8 h-8 rounded-full border-2 border-[#F3EFE7] dark:border-[#121212] flex items-center justify-center text-[10px] font-bold text-white shadow-sm ${bgClass}`}
+                  className={`w-8 h-8 rounded-full border-2 border-[#F3EFE7] dark:border-[#121212] flex items-center justify-center text-[10px] font-bold text-white shadow-sm overflow-hidden ${localUserPhoto ? '' : bgClass}`}
                   title={m.displayName}
                 >
-                  {initials}
+                  {localUserPhoto ? (
+                    <img src={localUserPhoto} alt="User Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    initials
+                  )}
                 </div>
               );
             })}
@@ -1120,11 +1127,16 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
 
                   const isCurrentUser = m.id === currentUser.id;
                   const isHost = m.id === group.hostId;
+                  const localUserPhoto = isCurrentUser ? localStorage.getItem('userPhoto') : null;
 
                   return (
                     <div key={m.id} className="flex items-center gap-4 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-sm shrink-0 ${bgClass}`}>
-                        {initials}
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-sm shrink-0 overflow-hidden ${localUserPhoto ? '' : bgClass}`}>
+                        {localUserPhoto ? (
+                          <img src={localUserPhoto} alt="User Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          initials
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
