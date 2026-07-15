@@ -22,6 +22,7 @@ export default function App() {
   const [userColor, setUserColor] = useState('');
   const [userEmail, setUserEmail] = useState(''); // Store email temporarily during onboarding
   const [groupName, setGroupName] = useState('My Group');
+  const [groupJoinSlug, setGroupJoinSlug] = useState('');
   const [groups, setGroups] = useState<{ id: string; name: string; members: number; color?: string }[]>([]);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
 
@@ -113,6 +114,7 @@ export default function App() {
       try {
         const res = await api.joinGroup(slug);
         setGroupName(res.group.name);
+        setGroupJoinSlug(res.group.joinSlug || '');
         await loadGroups();
         setReturnToMenu(false);
         setCurrentScreen('dashboard');
@@ -123,6 +125,7 @@ export default function App() {
       try {
         const newGroup = await api.createGroup(nameOrSlug);
         setGroupName(newGroup.name);
+        setGroupJoinSlug(newGroup.joinSlug || '');
         // Load the updated group list
         await loadGroups();
         setCurrentScreen('group_qr');
@@ -150,7 +153,7 @@ export default function App() {
       {currentScreen === 'payment_setup' && <PaymentMethodScreen onNext={handlePaymentSetupFinished} />}
       {currentScreen === 'group_setup' && <GroupSetupScreen onNext={handleCreateOrJoinGroup} />}
       {currentScreen === 'add_group' && <GroupSetupScreen onBack={() => { setReturnToMenu(false); setCurrentScreen('dashboard'); }} onNext={handleCreateOrJoinGroup} />}
-      {currentScreen === 'group_qr' && <GroupQRScreen groupName={groupName} onNext={() => { setReturnToMenu(false); setCurrentScreen('dashboard'); }} />}
+      {currentScreen === 'group_qr' && <GroupQRScreen groupName={groupName} joinSlug={groupJoinSlug} onNext={() => { setReturnToMenu(false); setCurrentScreen('dashboard'); }} />}
       {currentScreen === 'dashboard' && (
         <DashboardScreen 
           expenses={expenses} 

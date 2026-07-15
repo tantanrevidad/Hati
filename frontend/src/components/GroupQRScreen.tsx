@@ -5,11 +5,14 @@ import QRCode from 'react-qr-code';
 
 interface GroupQRScreenProps {
   groupName: string;
+  joinSlug?: string;
   onNext: () => void;
 }
 
-export default function GroupQRScreen({ groupName, onNext }: GroupQRScreenProps) {
+export default function GroupQRScreen({ groupName, joinSlug, onNext }: GroupQRScreenProps) {
   const slugifiedName = groupName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+  const displaySlug = joinSlug || slugifiedName || 'new-group';
+  const joinUrl = `${window.location.origin}/join/${displaySlug}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F3EFE7] via-[#FCECEE] to-[#EFA8B5]/20 dark:from-[#252B2F] dark:via-[#222123] dark:to-[#2F2427] py-12 px-6 flex flex-col items-center justify-start overflow-y-auto relative">
@@ -54,7 +57,7 @@ export default function GroupQRScreen({ groupName, onNext }: GroupQRScreenProps)
             {/* Mock QR Code Pattern with elegant graphite/ink stamps */}
             <div className="w-44 h-44 bg-white grid p-2 rounded-xl shadow-sm mx-auto">
               <QRCode
-                value={`lista.app/join/${slugifiedName || 'new-group'}`}
+                value={joinUrl}
                 size={160}
                 style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                 viewBox={`0 0 160 160`}
@@ -66,11 +69,11 @@ export default function GroupQRScreen({ groupName, onNext }: GroupQRScreenProps)
           <div className="space-y-4 w-full font-sans mb-8">
             <div className="flex gap-2">
               <div className="flex-1 bg-white dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-850 rounded-xl px-4 py-3 text-sm text-[#1B5648] dark:text-slate-300 font-bold truncate text-left select-all">
-                lista.app/join/{slugifiedName || 'new-group'}
+                {joinUrl}
               </div>
               <button 
                 onClick={() => {
-                  navigator.clipboard.writeText(`lista.app/join/${slugifiedName || 'new-group'}`);
+                  navigator.clipboard.writeText(joinUrl);
                 }}
                 className="bg-slate-100 hover:bg-[#FCECEE] dark:bg-slate-800 dark:hover:bg-slate-700 text-[#1B5648] dark:text-slate-300 px-4 rounded-xl transition-colors flex items-center justify-center border-2 border-[#C8DACF] dark:border-slate-700 shadow-sm active:scale-95"
                 title="Copy Link"

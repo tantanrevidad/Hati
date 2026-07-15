@@ -50,6 +50,7 @@ router.post('/groups', authMiddleware, async (req, res) => {
   }
 
   const groupId = uuidv4();
+  const joinSlug = uuidv4().slice(0, 8);
   const now = new Date().toISOString();
 
   try {
@@ -57,9 +58,9 @@ router.post('/groups', authMiddleware, async (req, res) => {
     try {
       await db.exec('BEGIN;');
       await db.run(`
-        INSERT INTO groups (id, name, hostId, createdAt)
-        VALUES (?, ?, ?, ?)
-      `, [groupId, name, hostId, now]);
+        INSERT INTO groups (id, name, hostId, joinSlug, createdAt)
+        VALUES (?, ?, ?, ?, ?)
+      `, [groupId, name, hostId, joinSlug, now]);
       
       await db.run(`
         INSERT INTO group_members (groupId, userId, joinedAt)
