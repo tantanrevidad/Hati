@@ -77,20 +77,17 @@ export default function PaymentMethodScreen({ onNext }: PaymentMethodScreenProps
 
         <div className="relative z-10">
           {/* Layered Paper Stack under the card - explicit lower z-index */}
-          <div className="absolute inset-x-8 -bottom-3 h-20 bg-leaf-peach/40 dark:bg-leaf-peach-dark/30 rounded-3xl rotate-2 shadow-lg z-0" />
-          <div className="absolute inset-x-6 -bottom-1 h-20 bg-leaf-pink/50 dark:bg-leaf-pink-dark/30 rounded-3xl -rotate-1 shadow-md z-0" />
+          <div className="absolute inset-x-6 -bottom-5 top-10 bg-[#13463B] dark:bg-[#1C2125] rounded-3xl shadow-md z-0" />
+          <div className="absolute inset-x-6 -bottom-2.5 top-10 bg-[#E5E1D3] dark:bg-[#252B2F] rounded-3xl shadow-md z-0" />
 
-          {/* Decorative Tape sticker holding the card */}
-          <div className="absolute -top-6 right-12 w-28 h-8 bg-leaf-peach/40 dark:bg-leaf-peach-dark/30 backdrop-blur-sm rotate-6 border border-white/20 dark:border-slate-800/20 shadow-sm z-20 flex items-center justify-center">
-            <div className="w-full h-full border-x-2 border-dashed border-white/40" />
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 border-2 border-[#C8DACF] dark:border-slate-800 relative overflow-hidden z-10">
-            {/* Spiral binder holes at top of page */}
-            <div className="absolute top-0 inset-x-0 flex justify-around px-8 -mt-3.5 z-20">
-              <div className="w-3 h-6 bg-slate-300 dark:bg-slate-600 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] border border-slate-400" />
-              <div className="w-3 h-6 bg-slate-300 dark:bg-slate-600 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] border border-slate-400" />
-              <div className="w-3 h-6 bg-slate-300 dark:bg-slate-600 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] border border-slate-400" />
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 border-2 border-[#C8DACF] dark:border-slate-800 relative z-10">
+            {/* Notebook decorative binder rings detail */}
+            <div className="absolute -top-3 left-0 right-0 flex justify-center gap-8 z-20">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="relative w-4 h-7 bg-[#13463B] dark:bg-slate-500 rounded-full shadow-md border border-[#0D3028] dark:border-slate-700">
+                  <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-2.5 h-2.5 bg-black/20 dark:bg-black/40 rounded-full shadow-inner" />
+                </div>
+              ))}
             </div>
 
             <div className="space-y-4 mt-4 font-sans">

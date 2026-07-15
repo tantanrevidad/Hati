@@ -133,30 +133,21 @@ export default function GroupSetupScreen({ onNext, onBack }: GroupSetupScreenPro
 
           {/* Create New Group Option with Layered Card Effect */}
           <div className={`relative z-10 transition-all duration-300 ${joinMethod ? 'opacity-50 scale-95 pointer-events-none' : ''}`}>
-            {/* ... */}
-            {/* Paper stack shadows */}
-            <div className="absolute inset-x-6 -bottom-2 h-16 bg-leaf-pink/30 dark:bg-leaf-pink-dark/20 rounded-3xl rotate-1 shadow-md z-0" />
-            <div className="absolute inset-x-4 -bottom-1 h-16 bg-leaf-green/20 dark:bg-leaf-green-dark/15 rounded-3xl -rotate-1 shadow-md z-0" />
+            {/* Layered Paper Stack under the card - explicit lower z-index */}
+            <div className="absolute inset-x-6 -bottom-5 top-10 bg-[#13463B] dark:bg-[#1C2125] rounded-3xl shadow-md z-0" />
+            <div className="absolute inset-x-6 -bottom-2.5 top-10 bg-[#E5E1D3] dark:bg-[#252B2F] rounded-3xl shadow-md z-0" />
 
-            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 border-2 border-[#C8DACF] dark:border-slate-800 relative overflow-hidden group z-10">
-              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-3.5 flex flex-col gap-6 z-20">
-                <div className="w-6 h-3 bg-slate-300 dark:bg-slate-600 rounded-full shadow-[inset_2px_0_4px_rgba(0,0,0,0.2)] border border-slate-400 rotate-90" />
-                <div className="w-6 h-3 bg-slate-300 dark:bg-slate-600 rounded-full shadow-[inset_2px_0_4px_rgba(0,0,0,0.2)] border border-slate-400 rotate-90" />
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 border-2 border-[#C8DACF] dark:border-slate-800 relative z-10">
+              {/* Notebook decorative binder rings detail */}
+              <div className="absolute -top-3 left-0 right-0 flex justify-center gap-8 z-20">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="relative w-4 h-7 bg-[#13463B] dark:bg-slate-500 rounded-full shadow-md border border-[#0D3028] dark:border-slate-700">
+                    <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-2.5 h-2.5 bg-black/20 dark:bg-black/40 rounded-full shadow-inner" />
+                  </div>
+                ))}
               </div>
 
-              <div className="absolute top-0 right-0 w-32 h-32 bg-leaf-yellow/20 dark:bg-leaf-yellow-dark/15 rounded-bl-full -z-10 transition-transform group-hover:scale-110" />
-              
-              <div className="flex items-center gap-4 mb-5">
-                <div className="w-12 h-12 rounded-xl bg-[#F3EFE7] dark:bg-slate-950 flex items-center justify-center text-[#1B5648] dark:text-slate-100 border-2 border-[#C8DACF] dark:border-slate-800 shadow-sm">
-                  <Users size={22} className="stroke-[2.5]" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-[#13463B] dark:text-white tracking-tight">Create New Group</h3>
-                  <p className="text-xs font-bold text-[#316D5F] dark:text-slate-400 uppercase tracking-wider">Start fresh with your friends</p>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
+              <div className="space-y-4 mt-4 font-sans">
                 <input 
                   type="text"
                   value={groupNameInput}

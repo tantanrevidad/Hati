@@ -85,12 +85,14 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
     }
   };
 
+  const userPhoto = localStorage.getItem('userPhoto');
+
   return (
-    <div className="min-h-screen bg-[#F3EFE7] dark:bg-[#121212] font-sans pb-28">
+    <div className={`min-h-screen bg-slate-50 dark:bg-[#121212] ${isDarkMode ? 'dark' : ''} transition-colors duration-300 font-sans pb-12`}>
       
       
-      {/* Header Profile */}
-      <header className="bg-white dark:bg-slate-900 border-b border-[#C8DACF] dark:border-slate-800 px-6 py-4 sticky top-0 z-20 flex justify-between items-center">
+      {/* Header */}
+      <header className="px-6 py-5 bg-white dark:bg-slate-900 border-b border-[#C8DACF] dark:border-slate-800 flex justify-between items-center sticky top-0 z-30 shadow-sm">
         <div>
           <h1 className="text-2xl tracking-tight text-[#13463B] dark:text-white flex items-center" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 900 }}>
             L<span className="relative inline-flex items-center justify-center">ı<span className="absolute top-[0.1em] left-1/2 -translate-x-1/2 w-[0.25em] h-[0.25em] bg-[#10C86E] rounded-full"></span></span>STA
@@ -100,9 +102,13 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsMenuOpen(true)}
-            className={`w-10 h-10 rounded-full ${userColor || 'bg-[#236450]'} border-2 border-[#F3EFE7] dark:border-[#30373C] flex items-center justify-center text-white font-bold shadow-sm hover:opacity-90 transition-opacity`}
+            className={`w-10 h-10 rounded-full ${userPhoto ? '' : (userColor || 'bg-[#236450]')} border-2 border-[#F3EFE7] dark:border-[#30373C] flex items-center justify-center text-white font-bold shadow-sm hover:opacity-90 transition-opacity overflow-hidden`}
           >
-            {userName ? userName.charAt(0).toUpperCase() : <User size={18} />}
+            {userPhoto ? (
+              <img src={userPhoto} alt="User Avatar" className="w-full h-full object-cover" />
+            ) : (
+              userName ? userName.charAt(0).toUpperCase() : <User size={18} />
+            )}
           </button>
         </div>
       </header>
@@ -128,8 +134,12 @@ export default function DashboardScreen({ groups, expenses, setExpenses, onCreat
             >
               <div className="px-6 py-6 border-b border-[#C8DACF] dark:border-slate-800 flex justify-between items-center bg-[#F3EFE7] dark:bg-[#121212]">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-full ${userColor || 'bg-[#236450]'} border-2 border-[#F3EFE7] dark:border-[#30373C] flex items-center justify-center text-white font-bold shadow-sm`}>
-                    {userName ? userName.charAt(0).toUpperCase() : <User size={22} />}
+                  <div className={`w-12 h-12 rounded-full ${userPhoto ? '' : (userColor || 'bg-[#236450]')} border-2 border-[#F3EFE7] dark:border-[#30373C] flex items-center justify-center text-white font-bold shadow-sm overflow-hidden`}>
+                    {userPhoto ? (
+                      <img src={userPhoto} alt="User Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      userName ? userName.charAt(0).toUpperCase() : <User size={22} />
+                    )}
                   </div>
                   <div>
                     <h3 className="font-bold text-[#13463B] dark:text-white text-lg leading-tight">{userName || 'My Profile'}</h3>
