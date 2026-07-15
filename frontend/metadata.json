@@ -1,0 +1,6 @@
+{
+  "name": "Lista",
+  "description": "A unique, modern app for sharing bills and expenses with a beautiful notebook-inspired design.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
