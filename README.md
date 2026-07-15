@@ -197,11 +197,11 @@ Lista/
 
 ## 👥 Hackathon Team & Roles
 
-As documented in **[Task Monitoring Role Assignments](file:///c:/Users/Tedd/Documents/College/Projects/APAC%20Hackathon/Lista/docs/Task%20Monitoring.md#L52-L60)**, our roles are divided as follows:
-
-*   👨‍💻 **Stellar / Blockchain Lead:** **Christanne Tedd Revidad** — Core Stellar SDK integrations, Freighter plumbing, custodial wallet APIs, and fee-bumper sponsorship.
-*   🎨 **Frontend Lead (Host / Settle Flow):** **Xancho Monreal** — App design system, dashboard interfaces, QR code invites, and settlement drawers.
-*   ⚙️ **Backend & Integration Lead:** *(Antigravity)* — DB migration (SQLite to Supabase Postgres), API routing, JWT auth gates, and the Splitwise-style greedy netting engine.
+Christanne Tedd Revidad - Project Lead
+Ehra Calderon - Market and Pitch Lead
+Hanniel Alindogan II - UI/UX Lead
+Xancho Bryan Monreal - Frontend Lead
+Tim Kaiser Llegue - Frontend Lead
 
 ---
 
