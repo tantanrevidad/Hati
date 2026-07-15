@@ -23,6 +23,8 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [successTxHash, setSuccessTxHash] = useState<string | null>(null);
+  const [txDetails, setTxDetails] = useState<any>(null);
+  const [txLoading, setTxLoading] = useState(false);
   const [joinUrl, setJoinUrl] = useState('');
   const [showShareToast, setShowShareToast] = useState(false);
 
@@ -86,6 +88,45 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
   useEffect(() => {
     loadData();
   }, [group.id]);
+
+  useEffect(() => {
+    if (!successTxHash) {
+      setTxDetails(null);
+      return;
+    }
+
+    const fetchTxDetails = async () => {
+      setTxLoading(true);
+      try {
+        const firstHash = successTxHash.split(',')[0];
+        const txRes = await fetch(`https://horizon-testnet.stellar.org/transactions/${firstHash}`);
+        if (!txRes.ok) throw new Error('Transaction details not found on Horizon');
+        const txData = await txRes.json();
+
+        const opRes = await fetch(`https://horizon-testnet.stellar.org/transactions/${firstHash}/operations`);
+        let opData = null;
+        if (opRes.ok) {
+          const opJson = await opRes.json();
+          opData = opJson._embedded?.records?.find((r: any) => r.type === 'payment');
+        }
+
+        setTxDetails({
+          hash: txData.id,
+          createdAt: txData.created_at,
+          source: txData.source_account,
+          fee: txData.fee_charged,
+          destination: opData?.to || opData?.destination || 'Stellar Account',
+          amount: opData?.amount || '0.00'
+        });
+      } catch (err) {
+        console.error('Failed to fetch transaction details from Horizon:', err);
+      } finally {
+        setTxLoading(false);
+      }
+    };
+
+    fetchTxDetails();
+  }, [successTxHash]);
 
   // Derived values from backend
   const { totalBalance, youOwe, owedToYou, owedToYouPersons, youOweBills, activeOwes } = useMemo(() => {
@@ -896,6 +937,45 @@ export default function GroupDetailScreen({ group, onBack, userName }: GroupDeta
               <p className="text-[#316D5F] dark:text-slate-400 text-xs leading-relaxed mb-6">
                 Your payment has been successfully submitted and verified on the Stellar Testnet blockchain using Circle USDC.
               </p>
+
+              {txLoading ? (
+                <div className="flex flex-col items-center justify-center py-6 mb-6">
+                  <Loader2 className="animate-spin text-slate-400 mb-2" size={24} />
+                  <span className="text-xs text-[#316D5F] dark:text-slate-400 font-medium">Fetching on-chain details...</span>
+                </div>
+              ) : txDetails ? (
+                <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 text-left text-xs space-y-2 mb-6 font-medium text-[#316D5F] dark:text-slate-350">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">On-Chain Receipt</span>
+                  <div className="flex justify-between gap-4">
+                    <span>Amount Paid:</span>
+                    <span className="font-bold text-[#13463B] dark:text-white">{parseFloat(txDetails.amount).toFixed(2)} USDC</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Sender Wallet:</span>
+                    <span className="font-mono text-[10px] text-[#13463B] dark:text-white truncate max-w-[150px]" title={txDetails.source}>
+                      {txDetails.source.substring(0, 8)}...{txDetails.source.substring(txDetails.source.length - 8)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Recipient Wallet:</span>
+                    <span className="font-mono text-[10px] text-[#13463B] dark:text-white truncate max-w-[150px]" title={txDetails.destination}>
+                      {txDetails.destination.substring(0, 8)}...{txDetails.destination.substring(txDetails.destination.length - 8)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Network Fee:</span>
+                    <span className="font-bold text-leaf-green-dark dark:text-leaf-green">₱0.00 (Fully Sponsored)</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Stellar Gas Cost:</span>
+                    <span className="font-mono text-[10px]">{txDetails.fee} Stroops</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Timestamp:</span>
+                    <span>{new Date(txDetails.createdAt).toLocaleString()}</span>
+                  </div>
+                </div>
+              ) : null}
               
               <div className="space-y-2 mb-6">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Stellar Transaction Verification</span>
