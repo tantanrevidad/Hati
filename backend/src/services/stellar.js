@@ -145,7 +145,7 @@ async function executeMintUsdc(toPublicKey, amountCentavos) {
  * Generates custodial Stellar keys for a user, registers them, and funds the account.
  */
 async function createCustodialWallet(userId) {
-  const user = db.prepare('SELECT walletAddress, walletSecret FROM users WHERE id = ?').get(userId);
+  const user = await db.get('SELECT walletAddress, walletSecret FROM users WHERE id = ?', [userId]);
   if (user && user.walletAddress) {
     return user.walletAddress; // Already exists
   }
@@ -156,11 +156,11 @@ async function createCustodialWallet(userId) {
   const secretKey = pair.secret();
 
   // Save to DB
-  db.prepare('UPDATE users SET walletAddress = ?, walletSecret = ? WHERE id = ?').run(
+  await db.run('UPDATE users SET walletAddress = ?, walletSecret = ? WHERE id = ?', [
     publicKey,
     secretKey,
     userId
-  );
+  ]);
 
   // Await funding so the account is guaranteed to exist on-chain before transaction creation
   console.log(`Funding custodial wallet for user ${userId} (${publicKey}) via Friendbot...`);
@@ -243,11 +243,11 @@ async function submitStellarPayment(fromSecret, toPublicKey, amountCentavos) {
  * with the official SDF Test Anchor, returning the interactive portal URL.
  */
 async function getInteractiveDepositUrl(userId) {
-  let user = db.prepare('SELECT walletAddress, walletSecret FROM users WHERE id = ?').get(userId);
+  let user = await db.get('SELECT walletAddress, walletSecret FROM users WHERE id = ?', [userId]);
   if (!user || !user.walletAddress || !user.walletSecret) {
     console.log(`Generating custodial wallet for user ${userId} on-the-fly for SEP-24 deposit...`);
     await createCustodialWallet(userId);
-    user = db.prepare('SELECT walletAddress, walletSecret FROM users WHERE id = ?').get(userId);
+    user = await db.get('SELECT walletAddress, walletSecret FROM users WHERE id = ?', [userId]);
   }
 
   const publicKey = user.walletAddress;

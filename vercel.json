@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/auth/(.*)", "destination": "/api/index.js" },
+    { "source": "/users/(.*)", "destination": "/api/index.js" },
+    { "source": "/groups", "destination": "/api/index.js" },
+    { "source": "/groups/(.*)", "destination": "/api/index.js" },
+    { "source": "/join/(.*)", "destination": "/api/index.js" },
+    { "source": "/settlements", "destination": "/api/index.js" },
+    { "source": "/settlements/(.*)", "destination": "/api/index.js" },
+    { "source": "/health", "destination": "/api/index.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

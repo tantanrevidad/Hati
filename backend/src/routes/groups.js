@@ -7,31 +7,31 @@ const { calculateLedger, simplifyDebts } = require('../services/debt');
 const { parseReceipt } = require('../services/gemini');
 
 // 0. Get all Groups for User
-router.get('/groups', authMiddleware, (req, res) => {
+router.get('/groups', authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
     // Lazy archive groups at zero balance for more than 7 days
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    db.prepare(`
+    await db.run(`
       UPDATE groups 
       SET status = 'archived' 
       WHERE zeroBalanceSince IS NOT NULL 
         AND zeroBalanceSince < ? 
         AND status = 'active'
-    `).run(sevenDaysAgo);
+    `, [sevenDaysAgo]);
 
-    const groups = db.prepare(`
+    const groups = await db.all(`
       SELECT g.* FROM groups g
       JOIN group_members gm ON g.id = gm.groupId
       WHERE gm.userId = ? AND g.status = 'active'
-    `).all(userId);
+    `, [userId]);
 
     // Add memberIds to each group object
-    groups.forEach(g => {
-      const members = db.prepare('SELECT userId FROM group_members WHERE groupId = ?').all(g.id);
+    for (const g of groups) {
+      const members = await db.all('SELECT userId FROM group_members WHERE groupId = ?', [g.id]);
       g.memberIds = members.map(m => m.userId);
-    });
+    }
 
     return res.json(groups);
   } catch (err) {
@@ -41,7 +41,7 @@ router.get('/groups', authMiddleware, (req, res) => {
 });
 
 // 1. Create a Listahan (Group)
-router.post('/groups', authMiddleware, (req, res) => {
+router.post('/groups', authMiddleware, async (req, res) => {
   const { name } = req.body;
   const hostId = req.user.id;
 
@@ -53,27 +53,26 @@ router.post('/groups', authMiddleware, (req, res) => {
   const now = new Date().toISOString();
 
   try {
-    const insertGroup = db.prepare(`
-      INSERT INTO groups (id, name, hostId, createdAt)
-      VALUES (?, ?, ?, ?)
-    `);
-    const insertMember = db.prepare(`
-      INSERT INTO group_members (groupId, userId, joinedAt)
-      VALUES (?, ?, ?)
-    `);
-
     // Run transaction
     try {
-      db.exec('BEGIN TRANSACTION;');
-      insertGroup.run(groupId, name, hostId, now);
-      insertMember.run(groupId, hostId, now);
-      db.exec('COMMIT;');
+      await db.exec('BEGIN;');
+      await db.run(`
+        INSERT INTO groups (id, name, hostId, createdAt)
+        VALUES (?, ?, ?, ?)
+      `, [groupId, name, hostId, now]);
+      
+      await db.run(`
+        INSERT INTO group_members (groupId, userId, joinedAt)
+        VALUES (?, ?, ?)
+      `, [groupId, hostId, now]);
+      
+      await db.exec('COMMIT;');
     } catch (txErr) {
-      db.exec('ROLLBACK;');
+      await db.exec('ROLLBACK;');
       throw txErr;
     }
 
-    const group = db.prepare('SELECT * FROM groups WHERE id = ?').get(groupId);
+    const group = await db.get('SELECT * FROM groups WHERE id = ?', [groupId]);
     return res.json(group);
   } catch (err) {
     console.error('Error creating group:', err);
@@ -82,25 +81,25 @@ router.post('/groups', authMiddleware, (req, res) => {
 });
 
 // 2. Generate/Get Join Link for Group
-router.post('/groups/:id/join-link', authMiddleware, (req, res) => {
+router.post('/groups/:id/join-link', authMiddleware, async (req, res) => {
   const groupId = req.params.id;
   const userId = req.user.id;
 
   try {
     // Verify group exists and user is a member
-    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    const member = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [groupId, userId]);
     if (!member) {
       return res.status(403).json({ error: 'Access denied: Not a group member' });
     }
 
-    let group = db.prepare('SELECT * FROM groups WHERE id = ?').get(groupId);
+    let group = await db.get('SELECT * FROM groups WHERE id = ?', [groupId]);
     if (!group) {
       return res.status(404).json({ error: 'Group not found' });
     }
 
     if (!group.joinSlug) {
       const slug = uuidv4().slice(0, 8); // simple short unique slug
-      db.prepare('UPDATE groups SET joinSlug = ? WHERE id = ?').run(slug, groupId);
+      await db.run('UPDATE groups SET joinSlug = ? WHERE id = ?', [slug, groupId]);
       group.joinSlug = slug;
     }
 
@@ -118,29 +117,29 @@ router.post('/groups/:id/join-link', authMiddleware, (req, res) => {
 });
 
 // 3. Resolve slug and join group
-router.get('/join/:slug', authMiddleware, (req, res) => {
+router.get('/join/:slug', authMiddleware, async (req, res) => {
   const slug = req.params.slug;
   const userId = req.user.id;
   const now = new Date().toISOString();
   console.log(`[debug] /join/:slug slug=${slug} userId=${userId}`);
 
   try {
-    const group = db.prepare('SELECT * FROM groups WHERE joinSlug = ?').get(slug);
+    const group = await db.get('SELECT * FROM groups WHERE joinSlug = ?', [slug]);
     console.log(`[debug] /join/:slug group=${JSON.stringify(group)}`);
     if (!group) {
       return res.status(404).json({ error: 'Invite link not found or expired' });
     }
 
     // Check if user is already a member
-    const existing = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(group.id, userId);
+    const existing = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [group.id, userId]);
     console.log(`[debug] /join/:slug existing_member=${JSON.stringify(existing)}`);
     if (!existing) {
-      db.prepare('INSERT INTO group_members (groupId, userId, joinedAt) VALUES (?, ?, ?)').run(group.id, userId, now);
+      await db.run('INSERT INTO group_members (groupId, userId, joinedAt) VALUES (?, ?, ?)', [group.id, userId, now]);
       console.log(`[debug] /join/:slug member inserted`);
       
       // If group was archived, check if joining breaks zero balance or keep active
       if (group.status === 'archived') {
-        db.prepare("UPDATE groups SET status = 'active', zeroBalanceSince = NULL WHERE id = ?").run(group.id);
+        await db.run("UPDATE groups SET status = 'active', zeroBalanceSince = NULL WHERE id = ?", [group.id]);
         group.status = 'active';
         group.zeroBalanceSince = null;
       }
@@ -148,7 +147,7 @@ router.get('/join/:slug', authMiddleware, (req, res) => {
 
     // Return group and ledger
     console.log(`[debug] /join/:slug calculating ledger...`);
-    const ledgerBalances = calculateLedger(group.id);
+    const ledgerBalances = await calculateLedger(group.id);
     console.log(`[debug] /join/:slug ledgerBalances=${JSON.stringify(ledgerBalances)}`);
     const simplifiedDebts = simplifyDebts(ledgerBalances);
     console.log(`[debug] /join/:slug simplifiedDebts=${JSON.stringify(simplifiedDebts)}`);
@@ -167,7 +166,7 @@ router.get('/join/:slug', authMiddleware, (req, res) => {
 });
 
 // 4. Post Expense
-router.post('/groups/:id/expenses', authMiddleware, (req, res) => {
+router.post('/groups/:id/expenses', authMiddleware, async (req, res) => {
   const groupId = req.params.id;
   const userId = req.user.id;
   const { description, amount, currency, category, paidBy, splitType, splitDetails } = req.body;
@@ -178,7 +177,7 @@ router.post('/groups/:id/expenses', authMiddleware, (req, res) => {
 
   try {
     // Verify membership
-    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    const member = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [groupId, userId]);
     if (!member) {
       return res.status(403).json({ error: 'Access denied: Not a group member' });
     }
@@ -192,12 +191,12 @@ router.post('/groups/:id/expenses', authMiddleware, (req, res) => {
       const matches = description.match(/@(\w+)/g) || [];
       const cleanNames = matches.map(m => m.replace('@', ''));
       
-      cleanNames.forEach(name => {
-        const matchedUser = db.prepare('SELECT id FROM users WHERE displayName LIKE ?').get(`%${name}%`);
+      for (const name of cleanNames) {
+        const matchedUser = await db.get('SELECT id FROM users WHERE displayName LIKE ?', [`%${name}%`]);
         if (matchedUser) {
           mentions.push(matchedUser.id);
         }
-      });
+      }
     }
 
     // Save split details JSON
@@ -216,7 +215,7 @@ router.post('/groups/:id/expenses', authMiddleware, (req, res) => {
           });
         } else {
           // Default to all group members
-          const groupMembers = db.prepare('SELECT userId FROM group_members WHERE groupId = ?').all(groupId);
+          const groupMembers = await db.all('SELECT userId FROM group_members WHERE groupId = ?', [groupId]);
           participantIds = groupMembers.map(m => m.userId);
         }
       } else {
@@ -238,12 +237,10 @@ router.post('/groups/:id/expenses', authMiddleware, (req, res) => {
     const expenseId = uuidv4();
     const now = new Date().toISOString();
 
-    const insert = db.prepare(`
+    await db.run(`
       INSERT INTO expenses (id, groupId, description, mentions, amount, currency, category, paidBy, splitType, splitDetails, source, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    insert.run(
+    `, [
       expenseId,
       groupId,
       description,
@@ -256,12 +253,12 @@ router.post('/groups/:id/expenses', authMiddleware, (req, res) => {
       JSON.stringify(splitDetailsObj),
       'manual_description',
       now
-    );
+    ]);
 
     // If group status was zero-balance, reset zeroBalanceSince
-    db.prepare("UPDATE groups SET zeroBalanceSince = NULL WHERE id = ?").run(groupId);
+    await db.run("UPDATE groups SET zeroBalanceSince = NULL WHERE id = ?", [groupId]);
 
-    const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(expenseId);
+    const expense = await db.get('SELECT * FROM expenses WHERE id = ?', [expenseId]);
     expense.mentions = JSON.parse(expense.mentions);
     expense.splitDetails = JSON.parse(expense.splitDetails);
 
@@ -284,7 +281,7 @@ router.post('/groups/:id/expenses/scan', authMiddleware, async (req, res) => {
 
   try {
     // Verify membership
-    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    const member = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [groupId, userId]);
     if (!member) {
       return res.status(403).json({ error: 'Access denied: Not a group member' });
     }
@@ -298,29 +295,29 @@ router.post('/groups/:id/expenses/scan', authMiddleware, async (req, res) => {
 });
 
 // 5. Get Group Ledger
-router.get('/groups/:id/ledger', authMiddleware, (req, res) => {
+router.get('/groups/:id/ledger', authMiddleware, async (req, res) => {
   const groupId = req.params.id;
   const userId = req.user.id;
 
   try {
     // Verify membership
-    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    const member = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [groupId, userId]);
     if (!member) {
       return res.status(403).json({ error: 'Access denied: Not a group member' });
     }
 
-    const balances = calculateLedger(groupId);
+    const balances = await calculateLedger(groupId);
     const debts = simplifyDebts(balances);
 
     // Verify if net balance is all zero to update zeroBalanceSince
     const allZero = Object.values(balances).every(b => Math.abs(b) < 1);
-    const group = db.prepare('SELECT zeroBalanceSince FROM groups WHERE id = ?').get(groupId);
+    const group = await db.get('SELECT zeroBalanceSince FROM groups WHERE id = ?', [groupId]);
 
     if (allZero && group && !group.zeroBalanceSince) {
       const now = new Date().toISOString();
-      db.prepare('UPDATE groups SET zeroBalanceSince = ? WHERE id = ?').run(now, groupId);
+      await db.run('UPDATE groups SET zeroBalanceSince = ? WHERE id = ?', [now, groupId]);
     } else if (!allZero && group && group.zeroBalanceSince) {
-      db.prepare('UPDATE groups SET zeroBalanceSince = NULL WHERE id = ?').run(groupId);
+      await db.run('UPDATE groups SET zeroBalanceSince = NULL WHERE id = ?', [groupId]);
     }
 
     return res.json({
@@ -334,7 +331,7 @@ router.get('/groups/:id/ledger', authMiddleware, (req, res) => {
 });
 
 // 6. Nudge a User (Rate-limited to 1 per user pair per 24 hours)
-router.post('/groups/:id/nudge', authMiddleware, (req, res) => {
+router.post('/groups/:id/nudge', authMiddleware, async (req, res) => {
   const groupId = req.params.id;
   const fromUserId = req.user.id;
   const { toUserId } = req.body;
@@ -345,19 +342,19 @@ router.post('/groups/:id/nudge', authMiddleware, (req, res) => {
 
   try {
     // Verify both are in the group
-    const fromMember = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, fromUserId);
-    const toMember = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, toUserId);
+    const fromMember = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [groupId, fromUserId]);
+    const toMember = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [groupId, toUserId]);
 
     if (!fromMember || !toMember) {
       return res.status(403).json({ error: 'Access denied: Users are not members of this group' });
     }
 
     // Enforce 24 hour rate limit
-    const lastNudge = db.prepare(`
+    const lastNudge = await db.get(`
       SELECT sentAt FROM nudges 
       WHERE groupId = ? AND fromUserId = ? AND toUserId = ?
       ORDER BY sentAt DESC LIMIT 1
-    `).get(groupId, fromUserId, toUserId);
+    `, [groupId, fromUserId, toUserId]);
 
     if (lastNudge) {
       const timeDiff = Date.now() - new Date(lastNudge.sentAt).getTime();
@@ -370,12 +367,12 @@ router.post('/groups/:id/nudge', authMiddleware, (req, res) => {
     const nudgeId = uuidv4();
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.run(`
       INSERT INTO nudges (id, groupId, fromUserId, toUserId, sentAt, acknowledged)
       VALUES (?, ?, ?, ?, ?, 0)
-    `).run(nudgeId, groupId, fromUserId, toUserId, now);
+    `, [nudgeId, groupId, fromUserId, toUserId, now]);
 
-    const nudge = db.prepare('SELECT * FROM nudges WHERE id = ?').get(nudgeId);
+    const nudge = await db.get('SELECT * FROM nudges WHERE id = ?', [nudgeId]);
     return res.json(nudge);
   } catch (err) {
     console.error('Error executing nudge:', err);
@@ -384,21 +381,21 @@ router.post('/groups/:id/nudge', authMiddleware, (req, res) => {
 });
 
 // 7. Get members of a Group
-router.get('/groups/:id/members', authMiddleware, (req, res) => {
+router.get('/groups/:id/members', authMiddleware, async (req, res) => {
   const groupId = req.params.id;
   const userId = req.user.id;
 
   try {
-    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    const member = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [groupId, userId]);
     if (!member) {
       return res.status(403).json({ error: 'Access denied: Not a group member' });
     }
 
-    const members = db.prepare(`
+    const members = await db.all(`
       SELECT u.id, u.displayName, u.photoUrl, u.phone, u.email, u.walletAddress FROM users u
       JOIN group_members gm ON u.id = gm.userId
       WHERE gm.groupId = ?
-    `).all(groupId);
+    `, [groupId]);
 
     return res.json(members);
   } catch (err) {
@@ -408,17 +405,17 @@ router.get('/groups/:id/members', authMiddleware, (req, res) => {
 });
 
 // 8. Get expenses for a Group
-router.get('/groups/:id/expenses', authMiddleware, (req, res) => {
+router.get('/groups/:id/expenses', authMiddleware, async (req, res) => {
   const groupId = req.params.id;
   const userId = req.user.id;
 
   try {
-    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    const member = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [groupId, userId]);
     if (!member) {
       return res.status(403).json({ error: 'Access denied: Not a group member' });
     }
 
-    const expenses = db.prepare('SELECT * FROM expenses WHERE groupId = ? ORDER BY createdAt DESC').all(groupId);
+    const expenses = await db.all('SELECT * FROM expenses WHERE groupId = ? ORDER BY createdAt DESC', [groupId]);
     expenses.forEach(e => {
       e.mentions = JSON.parse(e.mentions || '[]');
       e.splitDetails = JSON.parse(e.splitDetails || '{}');
@@ -432,21 +429,21 @@ router.get('/groups/:id/expenses', authMiddleware, (req, res) => {
 });
 
 // 9. Get settlements for a Group
-router.get('/groups/:id/settlements', authMiddleware, (req, res) => {
+router.get('/groups/:id/settlements', authMiddleware, async (req, res) => {
   const groupId = req.params.id;
   const userId = req.user.id;
 
   try {
-    const member = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?').get(groupId, userId);
+    const member = await db.get('SELECT 1 FROM group_members WHERE groupId = ? AND userId = ?', [groupId, userId]);
     if (!member) {
       return res.status(403).json({ error: 'Access denied: Not a group member' });
     }
 
-    const settlements = db.prepare('SELECT * FROM settlements WHERE groupId = ?').all(groupId);
-    settlements.forEach(s => {
-      const confirmations = db.prepare('SELECT toUserId, confirmedAt FROM confirmations WHERE settlementId = ?').all(s.id);
+    const settlements = await db.all('SELECT * FROM settlements WHERE groupId = ?', [groupId]);
+    for (const s of settlements) {
+      const confirmations = await db.all('SELECT toUserId, confirmedAt FROM confirmations WHERE settlementId = ?', [s.id]);
       s.confirmations = confirmations;
-    });
+    }
 
     return res.json(settlements);
   } catch (err) {

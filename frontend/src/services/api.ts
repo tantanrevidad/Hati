@@ -1,8 +1,10 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const getToken = () => localStorage.getItem('lista-token');
 
 async function request(method: string, path: string, body: any = null) {
   const token = getToken();
-  console.log(`[API] ${method} ${path} | token=${token ? token.substring(0, 20) + '...' : 'NONE'}`);
+  const url = `${API_BASE_URL}${path}`;
+  console.log(`[API] ${method} ${url} | token=${token ? token.substring(0, 20) + '...' : 'NONE'}`);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -10,7 +12,7 @@ async function request(method: string, path: string, body: any = null) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(path, {
+  const response = await fetch(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : null,
@@ -131,5 +133,17 @@ export const api = {
       toUserId,
       amountCentavos
     });
+  },
+
+  async getSettlements(groupId: string) {
+    return request('GET', `/groups/${groupId}/settlements`);
+  },
+
+  async analyzeReceiptText(description: string, groupMembersCount: number, userName: string) {
+    return request('POST', '/api/analyze-receipt', { description, groupMembersCount, userName });
+  },
+
+  async scanReceipt(groupId: string, imageBase64: string, mimeType: string) {
+    return request('POST', `/groups/${groupId}/expenses/scan`, { imageBase64, mimeType });
   }
 };
